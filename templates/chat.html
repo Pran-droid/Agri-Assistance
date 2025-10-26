@@ -196,13 +196,32 @@ chatForm.addEventListener('submit', async (event) => {
     chatMessageInput.focus();
     updateActiveChatPreview(message, null);
 
-    const typingIndicator = createMessageElement('bot', '...');
-    typingIndicator.classList.add('typing');
-    chatHistory.appendChild(typingIndicator);
+    // Create bot message element for streaming
+    const botMessageWrapper = document.createElement('div');
+    botMessageWrapper.className = 'message bot';
+    
+    const avatar = document.createElement('div');
+    avatar.className = 'avatar';
+    const img = document.createElement('img');
+    img.src = "{{ url_for('static', filename='bot-icon-chatbot.png') }}";
+    img.alt = 'AI';
+    img.style.width = '100%';
+    img.style.height = '100%';
+    img.style.objectFit = 'contain';
+    avatar.appendChild(img);
+    
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble typing';
+    bubble.textContent = '...';
+    
+    botMessageWrapper.appendChild(avatar);
+    botMessageWrapper.appendChild(bubble);
+    chatHistory.appendChild(botMessageWrapper);
     chatHistory.parentElement.scrollTop = chatHistory.parentElement.scrollHeight;
 
     try {
-        const response = await fetch("{{ url_for('get_response') }}", {
+        // Send POST request to get streaming endpoint
+        const response = await fetch("{{ url_for('chat_stream') }}", {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ message, chat_id: activeChatId })
@@ -212,21 +231,61 @@ chatForm.addEventListener('submit', async (event) => {
             throw new Error('Failed to get response');
         }
 
-        const data = await response.json();
-        typingIndicator.remove();
-        appendMessage('bot', data.response);
-        if (data.chatId) {
-            activeChatId = data.chatId;
+        // Read the streaming response
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let fullResponse = '';
+        bubble.classList.remove('typing');
+        bubble.textContent = '';
+
+        while (true) {
+            const { value, done } = await reader.read();
+            if (done) break;
+            
+            const chunk = decoder.decode(value, { stream: true });
+            const lines = chunk.split('\n');
+            
+            for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                    const jsonData = line.substring(6).trim();
+                    if (jsonData) {
+                        try {
+                            const data = JSON.parse(jsonData);
+                            
+                            if (data.done) {
+                                // Stream complete
+                                if (data.chatId) {
+                                    activeChatId = data.chatId;
+                                }
+                                if (data.chatTitle) {
+                                    chatTitle.textContent = data.chatTitle;
+                                    updateActiveChatPreview(fullResponse, data.chatTitle);
+                                } else {
+                                    updateActiveChatPreview(fullResponse, null);
+                                }
+                            } else if (data.text) {
+                                // Append new text chunk
+                                fullResponse += data.text;
+                                bubble.innerHTML = formatMessage(fullResponse);
+                                chatHistory.parentElement.scrollTop = chatHistory.parentElement.scrollHeight;
+                            }
+                        } catch (parseError) {
+                            console.error('JSON parse error:', parseError);
+                        }
+                    }
+                }
+            }
         }
-        if (data.chatTitle) {
-            chatTitle.textContent = data.chatTitle;
-            updateActiveChatPreview(data.response, data.chatTitle);
-        } else {
-            updateActiveChatPreview(data.response, null);
+        
+        if (!fullResponse) {
+            fullResponse = 'No response received.';
+            bubble.textContent = fullResponse;
         }
+        
     } catch (error) {
-        typingIndicator.remove();
-        appendMessage('bot', 'Sorry, something went wrong. Please try again.');
+        console.error('Streaming error:', error);
+        bubble.classList.remove('typing');
+        bubble.textContent = 'Sorry, something went wrong. Please try again.';
     }
 });
 

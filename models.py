@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from bson import ObjectId
@@ -7,7 +7,7 @@ from database import users_collection
 
 
 def build_new_chat(title: str = "New Chat") -> Dict[str, Any]:
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     return {
         "chat_id": str(ObjectId()),
         "title": title,
@@ -47,7 +47,7 @@ def ensure_chat_containers(user: Dict[str, Any]) -> Dict[str, Any]:
     if existing_history:
         chat = build_new_chat("Conversation")
         chat["messages"] = existing_history
-        chat["updated_at"] = existing_history[-1].get("timestamp", datetime.utcnow())
+        chat["updated_at"] = existing_history[-1].get("timestamp", datetime.now(timezone.utc))
         chats = [chat]
     else:
         chats = [build_new_chat()]
@@ -108,13 +108,13 @@ def append_chat_messages(user_id: ObjectId, chat_id: str, entries: List[Dict[str
         timestamped_entries.append({
             "sender": entry["sender"],
             "message": entry["message"],
-            "timestamp": entry.get("timestamp", datetime.utcnow()),
+            "timestamp": entry.get("timestamp", datetime.now(timezone.utc)),
         })
     users_collection.update_one(
         {"_id": user_id, "chats.chat_id": chat_id},
         {
             "$push": {"chats.$.messages": {"$each": timestamped_entries}},
-            "$set": {"chats.$.updated_at": datetime.utcnow()},
+            "$set": {"chats.$.updated_at": datetime.now(timezone.utc)},
         }
     )
 
@@ -122,7 +122,7 @@ def append_chat_messages(user_id: ObjectId, chat_id: str, entries: List[Dict[str
 def update_chat_title(user_id: ObjectId, chat_id: str, title: str) -> None:
     users_collection.update_one(
         {"_id": user_id, "chats.chat_id": chat_id},
-        {"$set": {"chats.$.title": title.strip()[:80], "chats.$.updated_at": datetime.utcnow()}}
+        {"$set": {"chats.$.title": title.strip()[:80], "chats.$.updated_at": datetime.now(timezone.utc)}}
     )
 
 

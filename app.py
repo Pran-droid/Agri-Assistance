@@ -1,8 +1,11 @@
-from datetime import datetime
+# from datetime import datetime
+import datetime
 from functools import wraps
+import time
+import json
 
 from dotenv import load_dotenv
-from flask import Flask, jsonify, redirect, render_template, request, session, url_for
+from flask import Flask, jsonify, redirect, render_template, request, session, url_for, Response, stream_with_context
 
 from models import (
     append_chat_messages,
@@ -20,6 +23,7 @@ from models import (
     update_user_location,
 )
 from services import handle_intents
+from services.chat_logic import handle_intents_stream
 
 
 load_dotenv()
@@ -82,7 +86,7 @@ def signup():
                 "preferred_language": preferred_language,
                 "password": password,
                 "crops": [],
-                "created_at": datetime.utcnow(),
+                "created_at": datetime.datetime.now(datetime.UTC),
             }
             create_user(user_doc)
             return redirect(url_for("login"))
@@ -203,6 +207,9 @@ def chat():
 @app.route("/get_response", methods=["POST"])
 @login_required
 def get_response():
+    # Start timing
+    start_time = time.time()
+    
     payload = request.get_json(silent=True) or {}
     user_message_original = (payload.get("message") or "").strip()
     requested_chat_id = (payload.get("chat_id") or "").strip()
@@ -223,12 +230,21 @@ def get_response():
         chat = create_chat(user["_id"])
         requested_chat_id = chat["chat_id"]
 
+    # Database operations complete
+    db_time = time.time()
+    print(f"⏱️  Database query took: {db_time - start_time:.4f} seconds")
+
+    # Call to AI service
     bot_response = handle_intents(user, user_message_original)
     final_response = bot_response
 
+    # AI call complete
+    api_time = time.time()
+    print(f"⏱️  Gemini API call took: {api_time - db_time:.4f} seconds")
+
     chat_entries = [
-        {"sender": "user", "message": user_message_original, "timestamp": datetime.utcnow()},
-        {"sender": "bot", "message": final_response, "timestamp": datetime.utcnow()},
+        {"sender": "user", "message": user_message_original, "timestamp": datetime.datetime.now(datetime.UTC)},
+        {"sender": "bot", "message": final_response, "timestamp": datetime.datetime.now(datetime.UTC)},
     ]
 
     was_empty = not chat.get("messages")
@@ -241,11 +257,105 @@ def get_response():
         chat["title"] = inferred_title
         chat_title = inferred_title
 
+    # Total time
+    total_time = time.time()
+    print(f"⏱️  Total request took: {total_time - start_time:.4f} seconds")
+    print(f"📊 Breakdown: DB={db_time-start_time:.4f}s, API={api_time-db_time:.4f}s, Save={total_time-api_time:.4f}s")
+
     return jsonify({
         "response": final_response,
         "chatId": requested_chat_id,
         "chatTitle": chat_title,
     })
+
+
+@app.route("/chat_stream", methods=["POST"])
+@login_required
+def chat_stream():
+    """Streaming endpoint for real-time AI responses."""
+    try:
+        request_start = time.time()
+        
+        payload = request.get_json(silent=True) or {}
+        user_message_original = (payload.get("message") or "").strip()
+        requested_chat_id = (payload.get("chat_id") or "").strip()
+
+        if not user_message_original:
+            return jsonify({"error": "Please enter a message."}), 400
+
+        user = get_logged_in_user()
+        if not user:
+            return jsonify({"error": "User not found."}), 404
+
+        user = ensure_chat_containers(user)
+        chat = None
+        if requested_chat_id:
+            chat = get_chat_by_id(user, requested_chat_id)
+
+        if not chat:
+            chat = create_chat(user["_id"])
+            requested_chat_id = chat["chat_id"]
+
+        db_end = time.time()
+        db_duration = db_end - request_start
+        print(f"⏱️  Database query took: {db_duration:.4f} seconds")
+
+        def generate():
+            """Generator function for streaming response."""
+            # Send immediate acknowledgment to start the stream
+            yield f": connected\n\n"
+            
+            full_response = []
+            api_start = time.time()
+            
+            # Stream the response chunk by chunk (includes PDF context retrieval + Gemini API)
+            for chunk in handle_intents_stream(user, user_message_original):
+                full_response.append(chunk)
+                # Send each chunk as Server-Sent Events (SSE) format immediately
+                chunk_data = f"data: {json.dumps({'text': chunk})}\n\n"
+                yield chunk_data
+            
+            api_end = time.time()
+            api_duration = api_end - api_start
+            print(f"⏱️  Gemini API call took: {api_duration:.4f} seconds")
+            
+            # After streaming is complete, save to database
+            save_start = time.time()
+            final_response = "".join(full_response)
+            
+            chat_entries = [
+                {"sender": "user", "message": user_message_original, "timestamp": datetime.datetime.now(datetime.UTC)},
+                {"sender": "bot", "message": final_response, "timestamp": datetime.datetime.now(datetime.UTC)},
+            ]
+
+            was_empty = not chat.get("messages")
+            append_chat_messages(user["_id"], requested_chat_id, chat_entries)
+
+            if was_empty:
+                inferred_title = user_message_original[:60] or "New Chat"
+                update_chat_title(user["_id"], requested_chat_id, inferred_title)
+                chat_title = inferred_title
+            else:
+                chat_title = chat.get("title", "New Chat")
+            
+            save_end = time.time()
+            save_duration = save_end - save_start
+            total_duration = save_end - request_start
+            
+            print(f"⏱️  Total request took: {total_duration:.4f} seconds")
+            print(f"📊 Breakdown: DB={db_duration:.4f}s, API={api_duration:.4f}s, Save={save_duration:.4f}s")
+            
+            # Send completion signal with metadata
+            yield f"data: {json.dumps({'done': True, 'chatId': requested_chat_id, 'chatTitle': chat_title})}\n\n"
+
+        response = Response(stream_with_context(generate()), mimetype='text/event-stream')
+        response.headers['Cache-Control'] = 'no-cache'
+        response.headers['X-Accel-Buffering'] = 'no'
+        return response
+
+    except Exception as e:
+        print(f"Error in chat_stream: {e}")
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route("/chat/new", methods=["POST"])

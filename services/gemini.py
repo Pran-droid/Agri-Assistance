@@ -1,5 +1,5 @@
 import os
-from typing import List, Optional
+from typing import List, Optional, Generator
 
 try:
     import google.generativeai as genai
@@ -31,11 +31,12 @@ else:
 
 def _build_prompt(user_query: str, pdf_context: str) -> str:
     return (
-        f"Context from farmer documents: {pdf_context}\n\n"
+        f"You are an expert agricultural assistant. Use the following knowledge base to answer questions:\n\n"
+        f"{pdf_context}\n\n"
         f"User Question: {user_query}\n\n"
-        "Based *only* on the context provided, answer the user's question about farmer schemes, "
-        "pesticides, or agriculture. If the context is empty or not relevant, just answer the question "
-        "as a general assistant."
+        "Answer the question directly and naturally. Use the knowledge base above to provide accurate information, "
+        "but respond as if you naturally know this information - don't mention 'the document' or 'according to the document'. "
+        "If the knowledge base doesn't contain relevant information, use your general agricultural knowledge to help the user."
     )
 
 
@@ -98,3 +99,48 @@ def generate_gemini_response(user_query: str, pdf_context: str, model_overrides:
         "Gemini request failed. Falling back to context summary.\n\n"
         f"Reason: {reason}\n\nPrompt used:\n{prompt}"
     )
+
+
+def generate_gemini_response_stream(user_query: str, pdf_context: str, model_overrides: Optional[List[str]] = None) -> Generator[str, None, None]:
+    """Stream Gemini response in real-time for faster perceived performance."""
+    prompt = _build_prompt(user_query, pdf_context)
+    
+    if not _GEMINI_READY:
+        yield "Gemini service is unavailable right now."
+        return
+
+    candidate_models: List[str] = []
+    seen = set()
+    preferred = [GEMINI_MODEL, "gemini-1.5-flash-latest", "gemini-1.5-pro-latest", "gemini-pro"]
+
+    for model_name in preferred + (model_overrides or []) + AVAILABLE_GEMINI_MODELS:
+        if not model_name:
+            continue
+        normalized = model_name.strip()
+        if not normalized or normalized in seen:
+            continue
+        seen.add(normalized)
+        candidate_models.append(normalized)
+
+    if not candidate_models:
+        yield "Gemini request failed. No models available."
+        return
+
+    last_exception: Optional[Exception] = None
+    for model_name in candidate_models:
+        try:
+            model = genai.GenerativeModel(model_name)
+            # Enable streaming with stream=True
+            response = model.generate_content(prompt, stream=True)
+            
+            for chunk in response:
+                if hasattr(chunk, 'text') and chunk.text:
+                    yield chunk.text
+            return  # Successfully streamed
+            
+        except Exception as exc:
+            last_exception = exc
+            continue
+
+    # If all models failed
+    yield f"Gemini request failed: {last_exception}"
