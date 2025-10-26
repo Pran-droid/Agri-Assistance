@@ -29,3 +29,8 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Cache files
+*.pkl
+.pdf_embeddings_cache.pkl
+
