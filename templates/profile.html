@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+{% block title %}My Profile | AgriAssist{% endblock %}
+{% block content %}
+<section class="content-card">
+    <header class="card-header">
+        <div class="header-text">
+            <h1>{{ user.name }}</h1>
+            <p class="subtitle">Your farmer profile and preferences.</p>
+        </div>
+        <a href="{{ url_for('chat') }}" class="primary-btn">Go to Chat</a>
+    </header>
+    <div class="info-grid">
+        <div>
+            <span class="label">Email</span>
+            <p>{{ user.email }}</p>
+        </div>
+    </div>
+
+    {% if message %}
+    <div class="alert {% if message_class %}{{ message_class }}{% endif %}">{{ message }}</div>
+    {% endif %}
+
+    <form method="post" class="profile-form">
+        <div class="form-grid">
+            <label>
+                Location
+                <input type="text" name="location" value="{{ user.location or '' }}" placeholder="Enter your location">
+            </label>
+            <label>
+                Preferred Language
+                <select name="preferred_language">
+                    {% for code, label in language_choices %}
+                    <option value="{{ code }}" {% if user.preferred_language == code %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label>
+                My Crops
+                <textarea name="crops" rows="3" placeholder="e.g. Wheat, Rice, Maize">{{ user.crops | join(', ') }}</textarea>
+                <span class="helper-text">Separate multiple crops with commas.</span>
+            </label>
+        </div>
+        <div class="form-actions">
+            <button type="submit" class="primary-btn">Save Changes</button>
+        </div>
+    </form>
+</section>
+{% endblock %}

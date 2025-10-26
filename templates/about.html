@@ -1,0 +1,86 @@
+{% extends 'base.html' %}
+
+{% block title %}About Us - AgriAssist{% endblock %}
+
+{% block content %}
+<div class="content-card" style="max-width: 800px;">
+    <div class="card-header">
+        <div class="header-text">
+            <h1>About AgriAssist</h1>
+            <p class="subtitle">Empowering Farmers with AI-Powered Assistance</p>
+        </div>
+    </div>
+
+    <div style="display: grid; gap: 2rem;">
+        <section>
+            <h2 style="color: var(--accent); font-size: 1.4rem; margin-bottom: 0.8rem;">Our Mission</h2>
+            <p style="line-height: 1.7; color: var(--text-secondary);">
+                AgriAssist is dedicated to revolutionizing agriculture through intelligent technology. 
+                We provide farmers with instant access to expert agricultural knowledge, helping them 
+                make informed decisions about crop management, pest control, soil health, and sustainable 
+                farming practices.
+            </p>
+        </section>
+
+        <section>
+            <h2 style="color: var(--accent); font-size: 1.4rem; margin-bottom: 0.8rem;">What We Offer</h2>
+            <div style="display: grid; gap: 1rem;">
+                <div style="padding: 1rem; background: rgba(255, 255, 255, 0.04); border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.06);">
+                    <h3 style="margin: 0 0 0.5rem 0; color: var(--text-primary); font-size: 1.1rem;">🌱 Crop Guidance</h3>
+                    <p style="margin: 0; color: var(--text-secondary); line-height: 1.6;">
+                        Get personalized advice on crop selection, planting schedules, and best practices for your region.
+                    </p>
+                </div>
+                
+                <div style="padding: 1rem; background: rgba(255, 255, 255, 0.04); border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.06);">
+                    <h3 style="margin: 0 0 0.5rem 0; color: var(--text-primary); font-size: 1.1rem;">🐛 Pest Management</h3>
+                    <p style="margin: 0; color: var(--text-secondary); line-height: 1.6;">
+                        Identify pests and diseases, and receive effective treatment recommendations.
+                    </p>
+                </div>
+                
+                <div style="padding: 1rem; background: rgba(255, 255, 255, 0.04); border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.06);">
+                    <h3 style="margin: 0 0 0.5rem 0; color: var(--text-primary); font-size: 1.1rem;">🌍 Sustainable Practices</h3>
+                    <p style="margin: 0; color: var(--text-secondary); line-height: 1.6;">
+                        Learn about eco-friendly farming methods and sustainable agriculture techniques.
+                    </p>
+                </div>
+                
+                <div style="padding: 1rem; background: rgba(255, 255, 255, 0.04); border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.06);">
+                    <h3 style="margin: 0 0 0.5rem 0; color: var(--text-primary); font-size: 1.1rem;">💬 24/7 Support</h3>
+                    <p style="margin: 0; color: var(--text-secondary); line-height: 1.6;">
+                        Access expert agricultural knowledge anytime, anywhere through our AI-powered chatbot.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <section>
+            <h2 style="color: var(--accent); font-size: 1.4rem; margin-bottom: 0.8rem;">Our Technology</h2>
+            <p style="line-height: 1.7; color: var(--text-secondary);">
+                Powered by advanced AI technology, AgriAssist leverages the latest in natural language 
+                processing to understand your farming challenges and provide accurate, context-aware solutions. 
+                Our platform is designed to be accessible and easy to use, ensuring that farmers of all 
+                technical backgrounds can benefit from cutting-edge agricultural insights.
+            </p>
+        </section>
+
+        <section>
+            <h2 style="color: var(--accent); font-size: 1.4rem; margin-bottom: 0.8rem;">Get Started</h2>
+            <p style="line-height: 1.7; color: var(--text-secondary); margin-bottom: 1rem;">
+                Join thousands of farmers who are already using AgriAssist to improve their yields and 
+                adopt better farming practices. Create your account today and start your journey towards 
+                smarter, more sustainable agriculture.
+            </p>
+            {% if not is_authenticated %}
+            <div style="display: flex; gap: 1rem;">
+                <a href="{{ url_for('signup') }}" class="primary-btn" style="text-decoration: none; display: inline-block;">Sign Up Now</a>
+                <a href="{{ url_for('login') }}" style="padding: 0.85rem 1.25rem; border-radius: 14px; border: 1px solid var(--accent); color: var(--accent); text-decoration: none; display: inline-block; transition: all 0.2s ease;">Login</a>
+            </div>
+            {% else %}
+            <a href="{{ url_for('chat') }}" class="primary-btn" style="text-decoration: none; display: inline-block;">Start Chatting</a>
+            {% endif %}
+        </section>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,261 @@
+{% extends 'base.html' %}
+{% block title %}Chat | AgriAssist{% endblock %}
+{% block content %}
+<section class="chat-shell">
+    <aside class="chat-sidebar">
+        <div class="sidebar-actions">
+            <button type="button" id="newChatBtn" class="sidebar-btn primary">+ New Chat</button>
+        </div>
+        <div class="sidebar-section">
+            <h3>Your Chats</h3>
+            <ul class="sidebar-history chat-list">
+                {% if chats %}
+                    {% for chat in chats %}
+                        {% set last_message = chat.messages|last if chat.messages else None %}
+                        <li class="chat-list-item{% if active_chat and chat.chat_id == active_chat.chat_id %} active{% endif %}" data-chat-id="{{ chat.chat_id }}">
+                            <button class="delete-chat-btn" data-chat-id="{{ chat.chat_id }}" title="Delete chat">×</button>
+                            <a href="{{ url_for('chat') }}?chat_id={{ chat.chat_id }}">
+                                <div class="chat-title">{{ chat.title or 'New Chat' }}</div>
+                                {% if last_message %}
+                                    <div class="chat-snippet">{{ last_message.message[:60] }}{% if last_message.message|length > 60 %}…{% endif %}</div>
+                                {% else %}
+                                    <div class="chat-snippet empty">No messages yet.</div>
+                                {% endif %}
+                            </a>
+                        </li>
+                    {% endfor %}
+                {% else %}
+                    <li class="chat-list-item empty">No chats yet. Start a new one!</li>
+                {% endif %}
+            </ul>
+        </div>
+    </aside>
+    <div class="chat-panel">
+        <header class="chat-header" id="chatHeader">
+            {% if active_chat %}
+                <h1 id="chatTitle">{{ active_chat.title or 'New Chat' }}</h1>
+            {% else %}
+                <h1 id="chatTitle">Start a new conversation</h1>
+            {% endif %}
+            <p>Ask anything about weather, markets, or your farm. I will reply in {{ user.preferred_language|upper }}.</p>
+        </header>
+        <div class="chat-window" id="chatWindow">
+            <div class="chat-history" id="chatHistory">
+                {% if active_chat and active_chat.messages %}
+                    {% for entry in active_chat.messages %}
+                    <div class="message {{ entry.sender }}">
+                        <div class="avatar">
+                            {% if entry.sender == 'user' %}
+                                You
+                            {% else %}
+                                <img src="{{ url_for('static', filename='bot-icon-chatbot.png') }}" alt="AI" style="width: 100%; height: 100%; object-fit: contain;">
+                            {% endif %}
+                        </div>
+                        <div class="bubble">{{ entry.message }}</div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="empty-state">No messages here yet. Say hello!</div>
+                {% endif %}
+            </div>
+        </div>
+        <div class="chat-input">
+            <form id="chatForm">
+                <input type="text" id="chatMessage" name="message" placeholder="Ask anything..." autocomplete="off" required>
+                <button type="submit">Send</button>
+            </form>
+        </div>
+    </div>
+</section>
+<script>
+const chatForm = document.getElementById('chatForm');
+const chatMessageInput = document.getElementById('chatMessage');
+const chatHistory = document.getElementById('chatHistory');
+const chatTitle = document.getElementById('chatTitle');
+const newChatBtn = document.getElementById('newChatBtn');
+let activeChatId = "{{ active_chat.chat_id if active_chat else '' }}";
+const chatBaseUrl = "{{ url_for('chat') }}";
+const newChatEndpoint = "{{ url_for('create_new_chat') }}";
+
+function escapeHtml(value) {
+    return value
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function formatMessage(text) {
+    if (!text) {
+        return '';
+    }
+    const escaped = escapeHtml(text);
+    const bolded = escaped.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    const bullets = bolded.replace(/^\s*[-•]\s+/gm, '• ');
+    const numbered = bullets.replace(/^(\d+)\.\s+/gm, '$1) ');
+    return numbered.replace(/\n/g, '<br>');
+}
+
+function createMessageElement(sender, text) {
+    const wrapper = document.createElement('div');
+    wrapper.className = `message ${sender}`;
+
+    const avatar = document.createElement('div');
+    avatar.className = 'avatar';
+    if (sender === 'user') {
+        avatar.textContent = 'You';
+    } else {
+        const img = document.createElement('img');
+        img.src = "{{ url_for('static', filename='bot-icon-chatbot.png') }}";
+        img.alt = 'AI';
+        img.style.width = '100%';
+        img.style.height = '100%';
+        img.style.objectFit = 'contain';
+        avatar.appendChild(img);
+    }
+
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble';
+    bubble.innerHTML = formatMessage(text);
+
+    wrapper.appendChild(avatar);
+    wrapper.appendChild(bubble);
+    return wrapper;
+}
+
+function appendMessage(sender, text) {
+    const emptyState = document.querySelector('#chatHistory .empty-state');
+    if (emptyState) {
+        emptyState.remove();
+    }
+    const chatHeader = document.getElementById('chatHeader');
+    if (chatHeader && sender === 'user') {
+        chatHeader.style.display = 'none';
+    }
+    const wrapper = createMessageElement(sender, text);
+    chatHistory.appendChild(wrapper);
+    chatHistory.parentElement.scrollTop = chatHistory.parentElement.scrollHeight;
+}
+
+document.querySelectorAll('#chatHistory .message .bubble').forEach((bubble) => {
+    bubble.innerHTML = formatMessage(bubble.textContent);
+});
+
+const chatHeader = document.getElementById('chatHeader');
+const hasMessages = document.querySelectorAll('#chatHistory .message').length > 0;
+if (chatHeader && hasMessages) {
+    chatHeader.style.display = 'none';
+}
+
+function updateActiveChatPreview(latestText, titleOverride) {
+    const item = document.querySelector(`.chat-list-item[data-chat-id="${activeChatId}"]`);
+    if (!item) {
+        return;
+    }
+    const snippet = item.querySelector('.chat-snippet');
+    if (snippet && latestText) {
+        const trimmed = latestText.length > 60 ? `${latestText.slice(0, 60)}…` : latestText;
+        snippet.textContent = trimmed;
+        snippet.classList.remove('empty');
+    }
+    if (titleOverride) {
+        const titleNode = item.querySelector('.chat-title');
+        if (titleNode) {
+            titleNode.textContent = titleOverride;
+        }
+    }
+}
+
+if (newChatBtn) {
+    newChatBtn.addEventListener('click', async () => {
+        try {
+            const response = await fetch(newChatEndpoint, { method: 'POST' });
+            if (!response.ok) {
+                throw new Error('Failed to create chat');
+            }
+            const data = await response.json();
+            const newId = data.chatId;
+            if (newId) {
+                window.location.href = `${chatBaseUrl}?chat_id=${encodeURIComponent(newId)}`;
+            }
+        } catch (error) {
+            alert('Unable to start a new chat right now. Please try again.');
+        }
+    });
+}
+
+chatForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const message = chatMessageInput.value.trim();
+    if (!message) {
+        return;
+    }
+    appendMessage('user', message);
+    chatMessageInput.value = '';
+    chatMessageInput.focus();
+    updateActiveChatPreview(message, null);
+
+    const typingIndicator = createMessageElement('bot', '...');
+    typingIndicator.classList.add('typing');
+    chatHistory.appendChild(typingIndicator);
+    chatHistory.parentElement.scrollTop = chatHistory.parentElement.scrollHeight;
+
+    try {
+        const response = await fetch("{{ url_for('get_response') }}", {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message, chat_id: activeChatId })
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to get response');
+        }
+
+        const data = await response.json();
+        typingIndicator.remove();
+        appendMessage('bot', data.response);
+        if (data.chatId) {
+            activeChatId = data.chatId;
+        }
+        if (data.chatTitle) {
+            chatTitle.textContent = data.chatTitle;
+            updateActiveChatPreview(data.response, data.chatTitle);
+        } else {
+            updateActiveChatPreview(data.response, null);
+        }
+    } catch (error) {
+        typingIndicator.remove();
+        appendMessage('bot', 'Sorry, something went wrong. Please try again.');
+    }
+});
+
+document.querySelectorAll('.delete-chat-btn').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        const chatId = btn.dataset.chatId;
+        if (!confirm('Are you sure you want to delete this chat?')) {
+            return;
+        }
+        
+        try {
+            const response = await fetch("{{ url_for('delete_chat') }}", {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ chat_id: chatId })
+            });
+            
+            if (!response.ok) {
+                throw new Error('Failed to delete chat');
+            }
+            
+            window.location.href = chatBaseUrl;
+        } catch (error) {
+            alert('Failed to delete chat. Please try again.');
+        }
+    });
+});
+</script>
+{% endblock %}

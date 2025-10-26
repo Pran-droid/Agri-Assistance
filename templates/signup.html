@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+{% block title %}Sign Up | AgriAssist{% endblock %}
+{% block content %}
+<section class="auth-card">
+    <h1>Create Account</h1>
+    <p class="subtitle">Join the AgriAssist chatbot prototype.</p>
+    {% if error %}
+    <div class="alert alert-error">{{ error }}</div>
+    {% endif %}
+    <form method="post" class="form-grid">
+        <label>Name
+            <input type="text" name="name" required placeholder="Full name">
+        </label>
+        <label>Email
+            <input type="email" name="email" required placeholder="you@example.com">
+        </label>
+        <label>Location
+            <input type="text" name="location" required placeholder="City or village">
+        </label>
+        <label>Preferred Language
+            <select name="preferred_language" required>
+                <option value="en">English</option>
+                <option value="hi">Hindi</option>
+                <option value="mr">Marathi</option>
+                <option value="ta">Tamil</option>
+                <option value="te">Telugu</option>
+            </select>
+        </label>
+        <label>Password
+            <input type="password" name="password" required placeholder="Choose a password">
+        </label>
+        <button type="submit" class="primary-btn">Sign Up</button>
+    </form>
+    <p class="form-footer">Already have an account? <a href="{{ url_for('login') }}">Log in</a>.</p>
+</section>
+{% endblock %}
