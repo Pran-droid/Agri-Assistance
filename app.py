@@ -124,6 +124,12 @@ def about():
     return render_template("about.html")
 
 
+@app.route("/market-prices")
+def market_prices():
+    """Display live market prices from data.gov.in API"""
+    return render_template("market_prices.html")
+
+
 @app.route("/profile", methods=["GET", "POST"])
 @login_required
 def profile():

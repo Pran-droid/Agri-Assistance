@@ -19,13 +19,15 @@
         {% if is_authenticated %}
         <ul>
             <li><a href="{{ url_for('chat') }}">Chat</a></li>
-            <li><a href="{{ url_for('profile') }}">Profile</a></li>
+            <li><a href="{{ url_for('market_prices') }}">Market Prices</a></li>
             <li><a href="{{ url_for('about') }}">About</a></li>
+            <li><a href="{{ url_for('profile') }}">Profile</a></li>
             <li><a href="{{ url_for('logout') }}">Logout</a></li>
         </ul>
         {% else %}
         <ul>
             <li><a href="{{ url_for('about') }}">About</a></li>
+            <li><a href="{{ url_for('market_prices') }}">Market Prices</a></li>
             <li><a href="{{ url_for('login') }}">Login</a></li>
             <li><a href="{{ url_for('signup') }}">Sign Up</a></li>
         </ul>

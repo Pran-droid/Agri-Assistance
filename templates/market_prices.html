@@ -1,0 +1,234 @@
+{% extends 'base.html' %}
+{% block title %}Market Prices | AgriAssist{% endblock %}
+{% block content %}
+<div id="loading" style="text-align: center; padding: 50px;">
+    <h2>Loading Market Data...</h2>
+    <div class="spinner"></div>
+</div>
+
+<section class="content-card" id="market-content" style="display: none; max-width: 1400px; width: 95%;">
+    <header class="card-header">
+        <div class="header-text">
+            <h1>Current Daily Mandi Prices</h1>
+            <p class="subtitle" id="description">Loading...</p>
+            <p style="margin-top: 10px;"><strong>Last Updated:</strong> <span id="updatedOn">Loading...</span></p>
+        </div>
+    </header>
+
+    <div style="margin: 20px 0; display: flex; gap: 15px; flex-wrap: wrap;">
+        <div style="flex: 1; min-width: 200px;">
+            <label style="display: block; margin-bottom: 5px; font-weight: 500;">Search Commodity:</label>
+            <input type="text" id="search_input" onkeyup="search()" placeholder="Search by state name..." 
+                   style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px;">
+        </div>
+        <div style="flex: 1; min-width: 200px;">
+            <label style="display: block; margin-bottom: 5px; font-weight: 500;">Filter by State:</label>
+            <select id="select_state" onchange="state()" 
+                    style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px;">
+                <option value="">All States</option>
+            </select>
+        </div>
+    </div>
+
+    <div style="overflow-x: auto; margin-top: 20px;">
+        <table class="table" style="width: 100%; border-collapse: collapse;">
+            <thead style="background-color: var(--accent); color: white;">
+                <tr>
+                    <th style="padding: 12px; text-align: left;">Sr. No.</th>
+                    <th style="padding: 12px; text-align: left;">State</th>
+                    <th style="padding: 12px; text-align: left;">District</th>
+                    <th style="padding: 12px; text-align: left;">Market</th>
+                    <th style="padding: 12px; text-align: left;">Commodity</th>
+                    <th style="padding: 12px; text-align: left;">Variety</th>
+                    <th style="padding: 12px; text-align: left;">Min Price (₹)</th>
+                    <th style="padding: 12px; text-align: left;">Max Price (₹)</th>
+                    <th style="padding: 12px; text-align: left;">Modal Price (₹)</th>
+                </tr>
+            </thead>
+            <tbody id="market_price_body">
+                <!-- Data will be populated here -->
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<style>
+.spinner {
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid var(--accent);
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    animation: spin 1s linear infinite;
+    margin: 20px auto;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.table tbody tr {
+    border-bottom: 1px solid #ddd;
+}
+
+.table tbody tr:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.table tbody td {
+    padding: 12px;
+}
+</style>
+
+<script>
+// Page onload functionality
+let loader = document.getElementById('loading');
+let marketContent = document.getElementById('market-content');
+
+function myloader() { 
+    loader.style.display = 'none';
+    marketContent.style.display = 'block';
+}
+
+// API Configuration
+const states = document.getElementById('select_state');
+const url = 'https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070?api-key=579b464db66ec23bdd0000017704f08e67e4414747189afb9ef2d662&format=json&offset=0&limit=4000';
+
+// Fetch data from API
+fetch(url)
+    .then(response => {
+        return response.json();
+    })
+    .then(data => {
+        getData(data);
+    })
+    .catch(err => {
+        console.error('Error fetching market data:', err);
+        loader.innerHTML = '<h2 style="color: red;">Failed to load market data. Please try again later.</h2>';
+    });
+
+// Process the fetched data
+function getData(result) {
+    console.log('Data received:', result);
+    
+    // Extract and display data
+    if (result.updated_date) {
+        getDate(result.updated_date);
+    }
+    
+    if (result.desc) {
+        getDesc(result.desc);
+    }
+    
+    if (result.records && result.records.length > 0) {
+        getRecords(result.records);
+        populateStateDropdown(result.records);
+    } else {
+        document.getElementById('market_price_body').innerHTML = 
+            '<tr><td colspan="9" style="text-align: center; padding: 20px;">No data available</td></tr>';
+    }
+    
+    myloader();
+}
+
+// Display the updated date
+function getDate(date) {
+    var update = new Date(date);
+    document.getElementById('updatedOn').innerHTML = update.toDateString();
+}
+
+// Display description
+function getDesc(desc) {
+    document.getElementById('description').innerHTML = desc;
+}
+
+// Populate state dropdown with unique states
+function populateStateDropdown(records) {
+    const uniqueStates = [...new Set(records.map(r => r.state))].sort();
+    
+    uniqueStates.forEach(stateName => {
+        const option = document.createElement('option');
+        option.value = stateName;
+        option.textContent = stateName;
+        states.appendChild(option);
+    });
+}
+
+// Populate table with records
+function getRecords(record) {
+    const tbody = document.getElementById('market_price_body');
+    tbody.innerHTML = ''; // Clear existing data
+    
+    for(let i = 0; i < record.length; i++) {
+        const sr = i + 1;
+        const state = record[i].state || 'N/A';
+        const districts = record[i].district || 'N/A';
+        const market = record[i].market || 'N/A';
+        const commodity = record[i].commodity || 'N/A';
+        const variety = record[i].variety || 'N/A';
+        const min_price = record[i].min_price || 'N/A';
+        const max_price = record[i].max_price || 'N/A';
+        const modal_price = record[i].modal_price || 'N/A';
+        
+        const tTr = document.createElement('tr');
+        tTr.innerHTML = '<th scope="row">' + sr + '</th>' + '\n' +
+            '<td>' + state + '</td>' + '\n' +
+            '<td>' + districts + '</td>' + '\n' +
+            '<td>' + market + '</td>' + '\n' +
+            '<td>' + commodity + '</td>' + '\n' +
+            '<td>' + variety + '</td>' + '\n' +
+            '<td>' + min_price + '</td>' + '\n' +
+            '<td>' + max_price + '</td>' + '\n' +
+            '<td>' + modal_price + '</td>' + '\n';
+        tbody.appendChild(tTr);
+    }
+}
+
+// Search functionality - searches by state name in column index 1
+function search() {
+    const filter = document.getElementById('search_input').value.toUpperCase();
+    const table = document.getElementById('market_price_body');
+    const tr = table.getElementsByTagName('tr');
+    
+    for(let i = 0; i < tr.length; i++) {
+        const td = tr[i].getElementsByTagName('td')[0]; // State column (index 0 after th)
+        if(td) {
+            const textValue = td.textContent || td.innerHTML;
+            if(textValue.toUpperCase().indexOf(filter) > -1) {
+                tr[i].style.display = "";
+            } else {
+                tr[i].style.display = "none";
+            }
+        }
+    }
+}
+
+// Filter by state from dropdown
+function state() {
+    const state_name = document.getElementById('select_state').value.toUpperCase();
+    const table = document.getElementById('market_price_body');
+    const tr = table.getElementsByTagName('tr');
+    
+    if(state_name === "") {
+        // Show all rows if no state selected
+        for(let i = 0; i < tr.length; i++) {
+            tr[i].style.display = "";
+        }
+        return;
+    }
+    
+    for(let i = 0; i < tr.length; i++) {
+        const td = tr[i].getElementsByTagName('td')[0]; // State column
+        if(td) {
+            const textValue = td.textContent || td.innerHTML;
+            if(textValue.toUpperCase() === state_name) {
+                tr[i].style.display = "";
+            } else {
+                tr[i].style.display = "none";
+            }
+        }
+    }
+}
+</script>
+{% endblock %}
