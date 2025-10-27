@@ -22,7 +22,7 @@ from models import (
     update_user_language,
     update_user_location,
 )
-from services import handle_intents
+from services import handle_intents, translate_text
 from services.chat_logic import handle_intents_stream
 
 
@@ -54,7 +54,10 @@ def login_required(view_function):
 
 @app.context_processor
 def inject_auth_state():
-    return {"is_authenticated": "user_id" in session}
+    return {
+        "is_authenticated": "user_id" in session,
+        "current_user": get_logged_in_user()
+    }
 
 
 @app.route("/")
@@ -234,9 +237,29 @@ def get_response():
     db_time = time.time()
     print(f"⏱️  Database query took: {db_time - start_time:.4f} seconds")
 
-    # Call to AI service
-    bot_response = handle_intents(user, user_message_original)
+    # Get user's preferred language
+    user_lang = user.get("preferred_language", "en")
+    
+    # Translate incoming message to English if needed
+    english_message = user_message_original
+    if user_lang and user_lang != "en":
+        try:
+            english_message = translate_text(user_message_original, src_language=user_lang, dest_language="en")
+        except Exception as e:
+            print(f"Translation error (user->en): {e}")
+            english_message = user_message_original
+
+    # Call to AI service with English message
+    bot_response = handle_intents(user, english_message)
+    
+    # Translate response back to user's language
     final_response = bot_response
+    if user_lang and user_lang != "en":
+        try:
+            final_response = translate_text(bot_response, src_language="en", dest_language=user_lang)
+        except Exception as e:
+            print(f"Translation error (en->user): {e}")
+            final_response = bot_response
 
     # AI call complete
     api_time = time.time()
@@ -300,6 +323,18 @@ def chat_stream():
         db_duration = db_end - request_start
         print(f"⏱️  Database query took: {db_duration:.4f} seconds")
 
+        # Get user's preferred language
+        user_lang = user.get("preferred_language", "en")
+        
+        # Translate incoming message to English if needed
+        english_message = user_message_original
+        if user_lang and user_lang != "en":
+            try:
+                english_message = translate_text(user_message_original, src_language=user_lang, dest_language="en")
+            except Exception as e:
+                print(f"Translation error (user->en): {e}")
+                english_message = user_message_original
+
         def generate():
             """Generator function for streaming response."""
             # Send immediate acknowledgment to start the stream
@@ -309,10 +344,19 @@ def chat_stream():
             api_start = time.time()
             
             # Stream the response chunk by chunk (includes PDF context retrieval + Gemini API)
-            for chunk in handle_intents_stream(user, user_message_original):
-                full_response.append(chunk)
+            for chunk in handle_intents_stream(user, english_message):
+                # Translate each chunk to user's language before sending
+                translated_chunk = chunk
+                if user_lang and user_lang != "en":
+                    try:
+                        translated_chunk = translate_text(chunk, src_language="en", dest_language=user_lang)
+                    except Exception as e:
+                        print(f"Translation error for chunk: {e}")
+                        translated_chunk = chunk
+                
+                full_response.append(translated_chunk)
                 # Send each chunk as Server-Sent Events (SSE) format immediately
-                chunk_data = f"data: {json.dumps({'text': chunk})}\n\n"
+                chunk_data = f"data: {json.dumps({'text': translated_chunk})}\n\n"
                 yield chunk_data
             
             api_end = time.time()
