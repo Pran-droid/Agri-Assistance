@@ -123,7 +123,7 @@ def _score_paragraphs(paragraphs: List[str], keywords: List[str]) -> List[Tuple[
     return scored
 
 
-def get_context_from_pdfs(query: str, top_k: int = 3) -> str:
+def get_context_from_pdfs(query: str, top_k: int = 2) -> str:
     """
     Retrieve most relevant context from PDFs using RAG with vector embeddings.
     Falls back to keyword matching if embeddings are not available.

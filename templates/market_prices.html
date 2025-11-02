@@ -17,15 +17,24 @@
 
     <div style="margin: 20px 0; display: flex; gap: 15px; flex-wrap: wrap;">
         <div style="flex: 1; min-width: 200px;">
-            <label style="display: block; margin-bottom: 5px; font-weight: 500;">Search Commodity:</label>
-            <input type="text" id="search_input" onkeyup="search()" placeholder="Search by state name..." 
-                   style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px;">
-        </div>
-        <div style="flex: 1; min-width: 200px;">
             <label style="display: block; margin-bottom: 5px; font-weight: 500;">Filter by State:</label>
-            <select id="select_state" onchange="state()" 
+            <select id="select_state" onchange="onStateChange()" 
                     style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px;">
                 <option value="">All States</option>
+            </select>
+        </div>
+        <div style="flex: 1; min-width: 200px;">
+            <label style="display: block; margin-bottom: 5px; font-weight: 500;">Filter by District:</label>
+            <select id="select_district" onchange="onDistrictChange()" 
+                    style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px;">
+                <option value="">All Districts</option>
+            </select>
+        </div>
+        <div style="flex: 1; min-width: 200px;">
+            <label style="display: block; margin-bottom: 5px; font-weight: 500;">Filter by Commodity:</label>
+            <select id="select_commodity" onchange="onCommodityChange()" 
+                    style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px;">
+                <option value="">All Commodities</option>
             </select>
         </div>
     </div>
@@ -91,8 +100,21 @@ function myloader() {
     marketContent.style.display = 'block';
 }
 
+// Global data storage
+let allRecords = [];
+let filteredRecords = [];
+let currentFilters = {
+    state: '',
+    district: '',
+    commodity: ''
+};
+
+// DOM elements
+const stateSelect = document.getElementById('select_state');
+const districtSelect = document.getElementById('select_district');
+const commoditySelect = document.getElementById('select_commodity');
+
 // API Configuration
-const states = document.getElementById('select_state');
 const url = 'https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070?api-key=579b464db66ec23bdd0000017704f08e67e4414747189afb9ef2d662&format=json&offset=0&limit=4000';
 
 // Fetch data from API
@@ -122,8 +144,16 @@ function getData(result) {
     }
     
     if (result.records && result.records.length > 0) {
-        getRecords(result.records);
-        populateStateDropdown(result.records);
+        allRecords = result.records;
+        filteredRecords = result.records;
+        
+        // Initialize all dropdowns
+        populateStateDropdown();
+        populateDistrictDropdown();
+        populateCommodityDropdown();
+        
+        // Display all records initially
+        getRecords(filteredRecords);
     } else {
         document.getElementById('market_price_body').innerHTML = 
             '<tr><td colspan="9" style="text-align: center; padding: 20px;">No data available</td></tr>';
@@ -143,22 +173,132 @@ function getDesc(desc) {
     document.getElementById('description').innerHTML = desc;
 }
 
-// Populate state dropdown with unique states
-function populateStateDropdown(records) {
-    const uniqueStates = [...new Set(records.map(r => r.state))].sort();
+// Populate state dropdown
+function populateStateDropdown() {
+    const uniqueStates = [...new Set(allRecords.map(r => r.state))].filter(s => s).sort();
     
+    stateSelect.innerHTML = '<option value="">All States</option>';
     uniqueStates.forEach(stateName => {
         const option = document.createElement('option');
         option.value = stateName;
         option.textContent = stateName;
-        states.appendChild(option);
+        stateSelect.appendChild(option);
     });
+}
+
+// Populate district dropdown based on selected state
+function populateDistrictDropdown() {
+    const recordsToFilter = currentFilters.state 
+        ? allRecords.filter(r => r.state === currentFilters.state)
+        : allRecords;
+    
+    const uniqueDistricts = [...new Set(recordsToFilter.map(r => r.district))].filter(d => d).sort();
+    
+    districtSelect.innerHTML = '<option value="">All Districts</option>';
+    uniqueDistricts.forEach(districtName => {
+        const option = document.createElement('option');
+        option.value = districtName;
+        option.textContent = districtName;
+        districtSelect.appendChild(option);
+    });
+    
+    // Restore selection if it still exists
+    if (currentFilters.district && uniqueDistricts.includes(currentFilters.district)) {
+        districtSelect.value = currentFilters.district;
+    } else {
+        currentFilters.district = '';
+    }
+}
+
+// Populate commodity dropdown based on selected state and district
+function populateCommodityDropdown() {
+    let recordsToFilter = allRecords;
+    
+    if (currentFilters.state) {
+        recordsToFilter = recordsToFilter.filter(r => r.state === currentFilters.state);
+    }
+    if (currentFilters.district) {
+        recordsToFilter = recordsToFilter.filter(r => r.district === currentFilters.district);
+    }
+    
+    const uniqueCommodities = [...new Set(recordsToFilter.map(r => r.commodity))].filter(c => c).sort();
+    
+    commoditySelect.innerHTML = '<option value="">All Commodities</option>';
+    uniqueCommodities.forEach(commodityName => {
+        const option = document.createElement('option');
+        option.value = commodityName;
+        option.textContent = commodityName;
+        commoditySelect.appendChild(option);
+    });
+    
+    // Restore selection if it still exists
+    if (currentFilters.commodity && uniqueCommodities.includes(currentFilters.commodity)) {
+        commoditySelect.value = currentFilters.commodity;
+    } else {
+        currentFilters.commodity = '';
+    }
+}
+
+// Handle state change
+function onStateChange() {
+    currentFilters.state = stateSelect.value;
+    currentFilters.district = '';
+    currentFilters.commodity = '';
+    
+    // Update dependent dropdowns
+    populateDistrictDropdown();
+    populateCommodityDropdown();
+    
+    // Apply filters and update table
+    applyFilters();
+}
+
+// Handle district change
+function onDistrictChange() {
+    currentFilters.district = districtSelect.value;
+    currentFilters.commodity = '';
+    
+    // Update dependent dropdown
+    populateCommodityDropdown();
+    
+    // Apply filters and update table
+    applyFilters();
+}
+
+// Handle commodity change
+function onCommodityChange() {
+    currentFilters.commodity = commoditySelect.value;
+    
+    // Apply filters and update table
+    applyFilters();
+}
+
+// Apply all active filters
+function applyFilters() {
+    filteredRecords = allRecords;
+    
+    if (currentFilters.state) {
+        filteredRecords = filteredRecords.filter(r => r.state === currentFilters.state);
+    }
+    if (currentFilters.district) {
+        filteredRecords = filteredRecords.filter(r => r.district === currentFilters.district);
+    }
+    if (currentFilters.commodity) {
+        filteredRecords = filteredRecords.filter(r => r.commodity === currentFilters.commodity);
+    }
+    
+    getRecords(filteredRecords);
 }
 
 // Populate table with records
 function getRecords(record) {
     const tbody = document.getElementById('market_price_body');
     tbody.innerHTML = ''; // Clear existing data
+    
+    if (record.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 20px;">No records found for the selected filters</td></tr>';
+        return;
+    }
     
     for(let i = 0; i < record.length; i++) {
         const sr = i + 1;
@@ -182,52 +322,6 @@ function getRecords(record) {
             '<td>' + max_price + '</td>' + '\n' +
             '<td>' + modal_price + '</td>' + '\n';
         tbody.appendChild(tTr);
-    }
-}
-
-// Search functionality - searches by state name in column index 1
-function search() {
-    const filter = document.getElementById('search_input').value.toUpperCase();
-    const table = document.getElementById('market_price_body');
-    const tr = table.getElementsByTagName('tr');
-    
-    for(let i = 0; i < tr.length; i++) {
-        const td = tr[i].getElementsByTagName('td')[0]; // State column (index 0 after th)
-        if(td) {
-            const textValue = td.textContent || td.innerHTML;
-            if(textValue.toUpperCase().indexOf(filter) > -1) {
-                tr[i].style.display = "";
-            } else {
-                tr[i].style.display = "none";
-            }
-        }
-    }
-}
-
-// Filter by state from dropdown
-function state() {
-    const state_name = document.getElementById('select_state').value.toUpperCase();
-    const table = document.getElementById('market_price_body');
-    const tr = table.getElementsByTagName('tr');
-    
-    if(state_name === "") {
-        // Show all rows if no state selected
-        for(let i = 0; i < tr.length; i++) {
-            tr[i].style.display = "";
-        }
-        return;
-    }
-    
-    for(let i = 0; i < tr.length; i++) {
-        const td = tr[i].getElementsByTagName('td')[0]; // State column
-        if(td) {
-            const textValue = td.textContent || td.innerHTML;
-            if(textValue.toUpperCase() === state_name) {
-                tr[i].style.display = "";
-            } else {
-                tr[i].style.display = "none";
-            }
-        }
     }
 }
 </script>

@@ -30,6 +30,11 @@ else:
 
 
 def _build_prompt(user_query: str, pdf_context: str) -> str:
+    # Limit PDF context to avoid extremely long prompts that slow down API
+    max_context_chars = 3000  # Reduced from unlimited to 3000 chars
+    if len(pdf_context) > max_context_chars:
+        pdf_context = pdf_context[:max_context_chars] + "\n...[Context truncated for performance]"
+    
     return (
         f"You are an expert agricultural assistant. Use the following knowledge base to answer questions:\n\n"
         f"{pdf_context}\n\n"
@@ -130,8 +135,14 @@ def generate_gemini_response_stream(user_query: str, pdf_context: str, model_ove
     for model_name in candidate_models:
         try:
             model = genai.GenerativeModel(model_name)
-            # Enable streaming with stream=True
-            response = model.generate_content(prompt, stream=True)
+            # Enable streaming with stream=True and optimize generation config
+            generation_config = {
+                "temperature": 0.7,
+                "top_p": 0.9,
+                "top_k": 40,
+                "max_output_tokens": 2048,  # Increased from 1024 to allow longer responses
+            }
+            response = model.generate_content(prompt, stream=True, generation_config=generation_config)
             
             for chunk in response:
                 if hasattr(chunk, 'text') and chunk.text:

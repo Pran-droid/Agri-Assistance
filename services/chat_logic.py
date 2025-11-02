@@ -3,7 +3,7 @@ import time
 
 import models
 from .gemini import generate_gemini_response, generate_gemini_response_stream
-from .market import get_market_prices
+from .market import get_market_prices, search_commodity_prices
 from .pdf_context import get_context_from_pdfs
 from .weather import get_weather
 
@@ -14,7 +14,20 @@ def handle_intents(user: Dict[str, Any], english_message: str) -> str:
     if "weather" in lowered:
         return get_weather(user.get("location", ""))
     if "market" in lowered or "price" in lowered:
-        return get_market_prices(user.get("location", ""))
+        # Get farmer's crops and location from profile
+        user_crops = user.get("crops", [])
+        user_location = user.get("location", "")
+        
+        # If farmer has crops in profile, show prices for their crops
+        if user_crops:
+            response_parts = []
+            for crop in user_crops[:3]:  # Limit to first 3 crops to avoid too long response
+                crop_prices = search_commodity_prices(crop, user_location)
+                response_parts.append(crop_prices)
+            return "\n\n---\n\n".join(response_parts)
+        else:
+            # Fallback to general market prices for their location
+            return get_market_prices(user_location)
     if lowered.startswith("update my location to"):
         new_location = english_message[len("update my location to"):].strip()
         if new_location:
@@ -43,7 +56,20 @@ def handle_intents_stream(user: Dict[str, Any], english_message: str) -> Generat
         yield get_weather(user.get("location", ""))
         return
     if "market" in lowered or "price" in lowered:
-        yield get_market_prices(user.get("location", ""))
+        # Get farmer's crops and location from profile
+        user_crops = user.get("crops", [])
+        user_location = user.get("location", "")
+        
+        # If farmer has crops in profile, show prices for their crops
+        if user_crops:
+            for crop in user_crops[:3]:  # Limit to first 3 crops
+                crop_prices = search_commodity_prices(crop, user_location)
+                yield crop_prices
+                if len(user_crops) > 1:
+                    yield "\n\n---\n\n"
+        else:
+            # Fallback to general market prices for their location
+            yield get_market_prices(user_location)
         return
     if lowered.startswith("update my location to"):
         new_location = english_message[len("update my location to"):].strip()

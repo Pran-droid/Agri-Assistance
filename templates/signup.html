@@ -14,8 +14,15 @@
         <label>Email
             <input type="email" name="email" required placeholder="you@example.com">
         </label>
-        <label>Location
-            <input type="text" name="location" required placeholder="City or village">
+        <label>State
+            <select name="state" id="stateSelect" required>
+                <option value="">Select State</option>
+            </select>
+        </label>
+        <label>District
+            <select name="district" id="districtSelect" required disabled>
+                <option value="">Select State First</option>
+            </select>
         </label>
         <label>Preferred Language
             <select name="preferred_language" required>
@@ -33,4 +40,57 @@
     </form>
     <p class="form-footer">Already have an account? <a href="{{ url_for('login') }}">Log in</a>.</p>
 </section>
+
+<script>
+// Load states on page load
+document.addEventListener('DOMContentLoaded', async () => {
+    const stateSelect = document.getElementById('stateSelect');
+    const districtSelect = document.getElementById('districtSelect');
+    
+    // Fetch all states
+    try {
+        const response = await fetch('/api/market/filters');
+        const data = await response.json();
+        
+        // Populate states
+        data.states.forEach(state => {
+            const option = document.createElement('option');
+            option.value = state;
+            option.textContent = state;
+            stateSelect.appendChild(option);
+        });
+    } catch (error) {
+        console.error('Error loading states:', error);
+    }
+    
+    // Handle state change - load districts
+    stateSelect.addEventListener('change', async () => {
+        const selectedState = stateSelect.value;
+        districtSelect.innerHTML = '<option value="">Loading...</option>';
+        districtSelect.disabled = true;
+        
+        if (!selectedState) {
+            districtSelect.innerHTML = '<option value="">Select State First</option>';
+            return;
+        }
+        
+        try {
+            const response = await fetch(`/api/market/filters?state=${encodeURIComponent(selectedState)}`);
+            const data = await response.json();
+            
+            districtSelect.innerHTML = '<option value="">Select District</option>';
+            data.districts.forEach(district => {
+                const option = document.createElement('option');
+                option.value = district;
+                option.textContent = district;
+                districtSelect.appendChild(option);
+            });
+            districtSelect.disabled = false;
+        } catch (error) {
+            console.error('Error loading districts:', error);
+            districtSelect.innerHTML = '<option value="">Error loading districts</option>';
+        }
+    });
+});
+</script>
 {% endblock %}

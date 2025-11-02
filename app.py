@@ -73,11 +73,15 @@ def signup():
     if request.method == "POST":
         name = request.form.get("name", "").strip()
         email = request.form.get("email", "").strip().lower()
-        location = request.form.get("location", "").strip()
+        state = request.form.get("state", "").strip()
+        district = request.form.get("district", "").strip()
         preferred_language = request.form.get("preferred_language", "en")
         password = request.form.get("password", "")
+        
+        # Combine state and district for location field
+        location = f"{district}, {state}" if district and state else (district or state or "")
 
-        if not all([name, email, location, preferred_language, password]):
+        if not all([name, email, state, district, preferred_language, password]):
             error = "All fields are required."
         elif find_user_by_email(email):
             error = "An account with this email already exists."
@@ -128,6 +132,30 @@ def about():
 def market_prices():
     """Display live market prices from data.gov.in API"""
     return render_template("market_prices.html")
+
+
+@app.route("/api/market/filters", methods=["GET"])
+def get_market_filters():
+    """Get available filter options (states, districts, commodities) from market data"""
+    from services.market import fetch_market_data
+    
+    state = request.args.get("state")
+    district = request.args.get("district")
+    
+    # Fetch data with filters
+    data = fetch_market_data(state=state, district=district, limit=4000)
+    records = data.get("records", [])
+    
+    # Extract unique values
+    states = sorted(list(set(r.get("state", "") for r in records if r.get("state"))))
+    districts = sorted(list(set(r.get("district", "") for r in records if r.get("district"))))
+    commodities = sorted(list(set(r.get("commodity", "") for r in records if r.get("commodity"))))
+    
+    return jsonify({
+        "states": states,
+        "districts": districts,
+        "commodities": commodities
+    })
 
 
 @app.route("/profile", methods=["GET", "POST"])

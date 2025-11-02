@@ -44,10 +44,10 @@ CITY_DISTRICT_MAP = {
 
 def parse_location(location: str) -> Dict[str, Optional[str]]:
     """
-    Parse user's location (city) to district and state for API query.
+    Parse user's location (city or "District, State" format) to district and state for API query.
     
     Args:
-        location: User's location string (city name)
+        location: User's location string (city name or "District, State" format)
     
     Returns:
         Dictionary with 'district' and 'state' keys
@@ -56,6 +56,12 @@ def parse_location(location: str) -> Dict[str, Optional[str]]:
         return {"district": None, "state": None}
     
     location_lower = location.lower().strip()
+    
+    # Check if location is in "District, State" format
+    if "," in location:
+        parts = [part.strip() for part in location.split(",")]
+        if len(parts) == 2:
+            return {"district": parts[0], "state": parts[1]}
     
     # Check if it's a known city
     if location_lower in CITY_DISTRICT_MAP:
@@ -265,9 +271,21 @@ def search_commodity_prices(commodity: str, location: Optional[str] = None) -> s
             district = location_info.get("district")
             state = location_info.get("state")
         
-        # Fetch data for the commodity
-        data = fetch_market_data(commodity=commodity, district=district, state=state, limit=100)
+        # Fetch data for the commodity with higher limit to get more results
+        data = fetch_market_data(commodity=commodity, district=district, state=state, limit=500)
         records = data.get("records", [])
+        
+        # If no records with district filter, try without it (state only)
+        if not records and district:
+            print(f"⚠️ No data for {commodity} in district {district}, trying state {state}")
+            data = fetch_market_data(commodity=commodity, state=state, limit=500)
+            records = data.get("records", [])
+        
+        # If still no records, try commodity only
+        if not records:
+            print(f"⚠️ No location-specific data, fetching all {commodity} prices")
+            data = fetch_market_data(commodity=commodity, limit=500)
+            records = data.get("records", [])
         
         if not records:
             return f"No price data found for {commodity}."

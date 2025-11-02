@@ -36,8 +36,10 @@
             </label>
             <label>
                 My Crops
-                <textarea name="crops" rows="3" placeholder="e.g. Wheat, Rice, Maize">{{ user.crops | join(', ') }}</textarea>
-                <span class="helper-text">Separate multiple crops with commas.</span>
+                <select name="crops" id="cropsSelect">
+                    <option value="">Loading crops...</option>
+                </select>
+                <span class="helper-text">Select your primary crop.</span>
             </label>
         </div>
         <div class="form-actions">
@@ -45,4 +47,44 @@
         </div>
     </form>
 </section>
+
+<style>
+#cropsSelect {
+    padding: 8px;
+}
+</style>
+
+<script>
+// Load available crops from API
+document.addEventListener('DOMContentLoaded', async () => {
+    const cropsSelect = document.getElementById('cropsSelect');
+    const userCrops = {{ user.crops | tojson }};
+    const userCrop = userCrops && userCrops.length > 0 ? userCrops[0] : '';
+    
+    try {
+        const response = await fetch('/api/market/filters');
+        const data = await response.json();
+        
+        // Clear loading option
+        cropsSelect.innerHTML = '<option value="">Select a crop</option>';
+        
+        // Populate with commodities from market data
+        data.commodities.forEach(crop => {
+            const option = document.createElement('option');
+            option.value = crop;
+            option.textContent = crop;
+            
+            // Pre-select user's existing crop
+            if (userCrop && userCrop === crop) {
+                option.selected = true;
+            }
+            
+            cropsSelect.appendChild(option);
+        });
+    } catch (error) {
+        console.error('Error loading crops:', error);
+        cropsSelect.innerHTML = '<option value="">Error loading crops</option>';
+    }
+});
+</script>
 {% endblock %}
