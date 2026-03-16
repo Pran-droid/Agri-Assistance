@@ -22,12 +22,14 @@
             <li><a href="{{ url_for('market_prices') }}">Market Prices</a></li>
             <li><a href="{{ url_for('about') }}">About</a></li>
             <li><a href="{{ url_for('profile') }}">Profile</a></li>
+            <li><button id="themeToggle" class="theme-toggle" title="Toggle theme">🌙</button></li>
             <li><a href="{{ url_for('logout') }}">Logout</a></li>
         </ul>
         {% else %}
         <ul>
             <li><a href="{{ url_for('about') }}">About</a></li>
             <li><a href="{{ url_for('market_prices') }}">Market Prices</a></li>
+            <li><button id="themeToggle" class="theme-toggle" title="Toggle theme">🌙</button></li>
             <li><a href="{{ url_for('login') }}">Login</a></li>
             <li><a href="{{ url_for('signup') }}">Sign Up</a></li>
         </ul>
@@ -39,5 +41,38 @@
     <footer class="footer">
         <p>&copy; 2025 AgriAssist. All rights reserved.</p>
     </footer>
+    <script>
+        // Theme toggle functionality
+        const themeToggle = document.getElementById('themeToggle');
+        const htmlElement = document.documentElement;
+        
+        // Initialize theme from localStorage
+        function initTheme() {
+            const savedTheme = localStorage.getItem('theme') || 'dark';
+            setTheme(savedTheme);
+        }
+        
+        // Set theme and update button
+        function setTheme(theme) {
+            if (theme === 'light') {
+                htmlElement.setAttribute('data-theme', 'light');
+                themeToggle.textContent = '☀️';
+            } else {
+                htmlElement.removeAttribute('data-theme');
+                themeToggle.textContent = '🌙';
+            }
+            localStorage.setItem('theme', theme);
+        }
+        
+        // Toggle theme on button click
+        themeToggle.addEventListener('click', () => {
+            const currentTheme = htmlElement.getAttribute('data-theme');
+            const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+            setTheme(newTheme);
+        });
+        
+        // Initialize theme on page load
+        initTheme();
+    </script>
 </body>
 </html>
