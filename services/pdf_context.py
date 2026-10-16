@@ -1,9 +1,19 @@
 import os
+import sys
 import pickle
 from typing import List, Tuple, Dict
 import numpy as np
 
+# Ensure console supports UTF-8 on Windows
+if sys.platform == "win32":
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+        sys.stderr.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
+
 from PyPDF2 import PdfReader
+
 
 # Try to import sentence transformers for embeddings
 try:
@@ -44,16 +54,25 @@ def _load_pdfs_and_create_embeddings():
             with open(CACHE_FILE, 'rb') as f:
                 cache_data = pickle.load(f)
                 _PDF_CACHE["paragraphs"] = cache_data["paragraphs"]
-                _PDF_CACHE["embeddings"] = cache_data["embeddings"]
+                _PDF_CACHE["embeddings"] = cache_data.get("embeddings")
                 print(f"✅ Loaded {len(_PDF_CACHE['paragraphs'])} paragraphs from cache")
                 _PDF_CACHE["loaded"] = True
-                
-                # Load embedding model
-                if EMBEDDINGS_AVAILABLE:
-                    _PDF_CACHE["model"] = SentenceTransformer('all-MiniLM-L6-v2')
+
+                # Load embedding model only if embeddings exist and library is available
+                if EMBEDDINGS_AVAILABLE and _PDF_CACHE["embeddings"] is not None:
+                    try:
+                        _PDF_CACHE["model"] = SentenceTransformer('all-MiniLM-L6-v2')
+                    except Exception as model_err:
+                        print(f"⚠️  Could not load embedding model: {model_err}")
+                        _PDF_CACHE["embeddings"] = None
                 return
         except Exception as e:
-            print(f"⚠️  Failed to load cache: {e}")
+            print(f"⚠️  Failed to load cache (will rebuild): {e}")
+            # Delete corrupted/incompatible cache file
+            try:
+                os.remove(CACHE_FILE)
+            except Exception:
+                pass
     
     # Load PDFs from scratch
     all_paragraphs = []
@@ -170,5 +189,5 @@ def get_context_from_pdfs(query: str, top_k: int = 2) -> str:
     return "\n\n".join(top_paragraphs)
 
 
-# Initialize embeddings when module is imported
-_load_pdfs_and_create_embeddings()
+# NOTE: PDFs are loaded lazily on first request to avoid OOM on low-memory servers.
+# Do NOT call _load_pdfs_and_create_embeddings() at import time.
