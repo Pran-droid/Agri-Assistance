@@ -5,48 +5,45 @@ from dotenv import load_dotenv
 load_dotenv()
 
 try:
-    import google.generativeai as genai
-except ImportError:  # pragma: no cover
+    from google import genai
+    from google.genai import types
+    GENAI_AVAILABLE = True
+except ImportError:
     genai = None
+    types = None
+    GENAI_AVAILABLE = False
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 
-AVAILABLE_GEMINI_MODELS: List[str] = []
-_GEMINI_READY = False
 SUPPORTED_IMAGE_MIME_TYPES = {"image/jpeg", "image/png", "image/webp"}
 
-# Lazy init — configure API key now but DON'T call list_models() at startup
-# (that makes a live network request which slows/crashes startup on low-RAM servers)
-if GEMINI_API_KEY and genai:
+_client = None
+_GEMINI_READY = False
+
+
+def _get_client():
+    """Lazily initialize the Gemini client on first use."""
+    global _client, _GEMINI_READY
+    if _client is not None:
+        return _client
+    if not GEMINI_API_KEY or not GENAI_AVAILABLE:
+        return None
     try:
-        genai.configure(api_key=GEMINI_API_KEY)
+        _client = genai.Client(api_key=GEMINI_API_KEY)
         _GEMINI_READY = True
-    except Exception:
+        return _client
+    except Exception as e:
+        print(f"⚠️  Failed to initialize Gemini client: {e}")
         _GEMINI_READY = False
-
-
-def _ensure_models_loaded():
-    """Lazily fetch available models on first actual use."""
-    global AVAILABLE_GEMINI_MODELS
-    if AVAILABLE_GEMINI_MODELS or not _GEMINI_READY:
-        return
-    try:
-        AVAILABLE_GEMINI_MODELS = [
-            model.name
-            for model in genai.list_models()
-            if "generateContent" in getattr(model, "supported_generation_methods", [])
-        ]
-    except Exception:
-        AVAILABLE_GEMINI_MODELS = []
+        return None
 
 
 def _build_prompt(user_query: str, pdf_context: str) -> str:
-    # Limit PDF context to avoid extremely long prompts that slow down API
-    max_context_chars = 3000  # Reduced from unlimited to 3000 chars
+    max_context_chars = 3000
     if len(pdf_context) > max_context_chars:
         pdf_context = pdf_context[:max_context_chars] + "\n...[Context truncated for performance]"
-    
+
     return (
         f"You are an expert agricultural assistant. Use the following knowledge base to answer questions:\n\n"
         f"{pdf_context}\n\n"
@@ -57,117 +54,83 @@ def _build_prompt(user_query: str, pdf_context: str) -> str:
     )
 
 
-def generate_gemini_response(user_query: str, pdf_context: str, model_overrides: Optional[List[str]] = None) -> str:
-    _ensure_models_loaded()
-    prompt = _build_prompt(user_query, pdf_context)
-    if not _GEMINI_READY:
-        return (
-            "Gemini service is unavailable right now. Based on the documents, here's a drafted response:\n\n"
-            f"{prompt}"
-        )
-
-    candidate_models: List[str] = []
+def _get_candidate_models() -> List[str]:
+    preferred = [GEMINI_MODEL, "gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
     seen = set()
-    preferred = [GEMINI_MODEL, "gemini-2.5-flash", "gemini-flash-latest", "gemini-1.5-flash", "gemini-pro"]
+    result = []
+    for m in preferred:
+        if m and m not in seen:
+            seen.add(m)
+            result.append(m)
+    return result
 
-    for model_name in preferred + (model_overrides or []) + AVAILABLE_GEMINI_MODELS:
-        if not model_name:
-            continue
-        normalized = model_name.strip()
-        if not normalized or normalized in seen:
-            continue
-        seen.add(normalized)
-        candidate_models.append(normalized)
 
-    if not candidate_models:
+def generate_gemini_response(user_query: str, pdf_context: str, model_overrides: Optional[List[str]] = None) -> str:
+    client = _get_client()
+    prompt = _build_prompt(user_query, pdf_context)
+
+    if not client:
         return (
-            "Gemini request failed. Falling back to context summary.\n\n"
-            "Reason: No Gemini models supporting generateContent were found for this API key."
-            " Ensure the Generative Language API is enabled and the key has access.\n\n"
+            "Gemini service is unavailable right now. Please check your GEMINI_API_KEY.\n\n"
             f"Prompt used:\n{prompt}"
         )
 
-    last_exception: Optional[Exception] = None
+    candidate_models = _get_candidate_models()
+    if model_overrides:
+        candidate_models = model_overrides + candidate_models
+
+    last_exception = None
     for model_name in candidate_models:
         try:
-            model = genai.GenerativeModel(model_name)
-            response = model.generate_content(prompt)
+            response = client.models.generate_content(
+                model=model_name,
+                contents=prompt,
+            )
+            if response.text:
+                return response.text.strip()
         except Exception as exc:
             last_exception = exc
             continue
 
-        if hasattr(response, "text") and response.text:
-            return response.text.strip()
-
-        candidates = getattr(response, "candidates", []) or []
-        collected_parts: List[str] = []
-        for candidate in candidates:
-            content = getattr(candidate, "content", None)
-            if not content:
-                continue
-            for part in getattr(content, "parts", []):
-                text = getattr(part, "text", None)
-                if text:
-                    collected_parts.append(text)
-        if collected_parts:
-            return "\n\n".join(collected_parts).strip()
-
-    reason = last_exception if last_exception else "No Gemini models returned usable text."
     return (
         "Gemini request failed. Falling back to context summary.\n\n"
-        f"Reason: {reason}\n\nPrompt used:\n{prompt}"
+        f"Reason: {last_exception or 'No model returned a usable response.'}"
     )
 
 
 def generate_gemini_response_stream(user_query: str, pdf_context: str, model_overrides: Optional[List[str]] = None) -> Generator[str, None, None]:
     """Stream Gemini response in real-time for faster perceived performance."""
-    _ensure_models_loaded()
+    client = _get_client()
     prompt = _build_prompt(user_query, pdf_context)
 
-    if not _GEMINI_READY:
+    if not client:
         yield "Gemini service is unavailable right now."
         return
 
-    candidate_models: List[str] = []
-    seen = set()
-    preferred = [GEMINI_MODEL, "gemini-2.5-flash", "gemini-flash-latest", "gemini-1.5-flash", "gemini-pro"]
+    candidate_models = _get_candidate_models()
+    if model_overrides:
+        candidate_models = model_overrides + candidate_models
 
-    for model_name in preferred + (model_overrides or []) + AVAILABLE_GEMINI_MODELS:
-        if not model_name:
-            continue
-        normalized = model_name.strip()
-        if not normalized or normalized in seen:
-            continue
-        seen.add(normalized)
-        candidate_models.append(normalized)
-
-    if not candidate_models:
-        yield "Gemini request failed. No models available."
-        return
-
-    last_exception: Optional[Exception] = None
+    last_exception = None
     for model_name in candidate_models:
         try:
-            model = genai.GenerativeModel(model_name)
-            # Enable streaming with stream=True and optimize generation config
-            generation_config = {
-                "temperature": 0.7,
-                "top_p": 0.9,
-                "top_k": 40,
-                "max_output_tokens": 2048,  # Increased from 1024 to allow longer responses
-            }
-            response = model.generate_content(prompt, stream=True, generation_config=generation_config)
-            
-            for chunk in response:
-                if hasattr(chunk, 'text') and chunk.text:
+            for chunk in client.models.generate_content_stream(
+                model=model_name,
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    temperature=0.7,
+                    top_p=0.9,
+                    top_k=40,
+                    max_output_tokens=2048,
+                ) if types else None,
+            ):
+                if chunk.text:
                     yield chunk.text
             return  # Successfully streamed
-            
         except Exception as exc:
             last_exception = exc
             continue
 
-    # If all models failed
     yield f"Gemini request failed: {last_exception}"
 
 
@@ -184,8 +147,8 @@ def analyze_plant_disease_image(
     if normalized_mime not in SUPPORTED_IMAGE_MIME_TYPES:
         return "Unsupported image type. Please upload a JPG, PNG, or WEBP image."
 
-    _ensure_models_loaded()
-    if not _GEMINI_READY:
+    client = _get_client()
+    if not client:
         return (
             "Image diagnosis is temporarily unavailable because Gemini is not configured. "
             "Set GEMINI_API_KEY and try again."
@@ -205,53 +168,28 @@ def analyze_plant_disease_image(
         "leaf/stem close-up and whole-plant photo before concluding."
     )
 
-    candidate_models: List[str] = []
-    seen = set()
-    preferred = [
-        GEMINI_MODEL,
-        "gemini-2.5-flash",
-        "gemini-flash-latest",
-        "gemini-1.5-flash",
-        "gemini-pro",
-    ]
+    candidate_models = _get_candidate_models()
+    if model_overrides:
+        candidate_models = model_overrides + candidate_models
 
-    for model_name in preferred + (model_overrides or []) + AVAILABLE_GEMINI_MODELS:
-        if not model_name:
-            continue
-        normalized = model_name.strip()
-        if not normalized or normalized in seen:
-            continue
-        seen.add(normalized)
-        candidate_models.append(normalized)
-
-    if not candidate_models:
-        return "No Gemini multimodal models are available for this API key."
-
-    last_exception: Optional[Exception] = None
-    image_part = {"mime_type": normalized_mime, "data": image_bytes}
-
+    last_exception = None
     for model_name in candidate_models:
         try:
-            model = genai.GenerativeModel(model_name)
-            response = model.generate_content([prompt, image_part])
+            if types:
+                image_part = types.Part.from_bytes(data=image_bytes, mime_type=normalized_mime)
+                response = client.models.generate_content(
+                    model=model_name,
+                    contents=[prompt, image_part],
+                )
+            else:
+                response = client.models.generate_content(
+                    model=model_name,
+                    contents=[prompt, {"mime_type": normalized_mime, "data": image_bytes}],
+                )
+            if response.text:
+                return response.text.strip()
         except Exception as exc:
             last_exception = exc
             continue
-
-        if hasattr(response, "text") and response.text:
-            return response.text.strip()
-
-        candidates = getattr(response, "candidates", []) or []
-        collected_parts: List[str] = []
-        for candidate in candidates:
-            content = getattr(candidate, "content", None)
-            if not content:
-                continue
-            for part in getattr(content, "parts", []):
-                text = getattr(part, "text", None)
-                if text:
-                    collected_parts.append(text)
-        if collected_parts:
-            return "\n\n".join(collected_parts).strip()
 
     return f"Image diagnosis failed: {last_exception or 'No model returned a usable response.'}"

@@ -2,7 +2,12 @@ import os
 import sys
 import pickle
 from typing import List, Tuple, Dict
-import numpy as np
+try:
+    import numpy as np
+    NUMPY_AVAILABLE = True
+except ImportError:
+    np = None
+    NUMPY_AVAILABLE = False
 
 # Ensure console supports UTF-8 on Windows
 if sys.platform == "win32":
@@ -126,6 +131,8 @@ def _load_pdfs_and_create_embeddings():
 
 def _cosine_similarity(a, b):
     """Calculate cosine similarity between two vectors."""
+    if not NUMPY_AVAILABLE or np is None:
+        return 0.0
     return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
 
 
