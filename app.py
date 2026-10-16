@@ -1,10 +1,23 @@
-# from datetime import datetime
+import os
+import sys
 import datetime
 from functools import wraps
 import time
 import json
 
 from dotenv import load_dotenv
+
+# Ensure environment variables are loaded before any services/models initialization
+load_dotenv()
+
+# Ensure console supports UTF-8 on Windows
+if sys.platform == "win32":
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+        sys.stderr.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
+
 from flask import Flask, jsonify, redirect, render_template, request, session, url_for, Response, stream_with_context
 
 from models import (
@@ -24,12 +37,11 @@ from models import (
 )
 from services import handle_intents, translate_text
 from services.chat_logic import handle_intents_stream
+from services.gemini import analyze_plant_disease_image
 
-
-load_dotenv()
 
 app = Flask(__name__)
-app.secret_key = "dev_secret_key_change_me"
+app.secret_key = os.getenv("SECRET_KEY", "dev_secret_key_change_me")
 
 LANGUAGE_CHOICES = [
     ("en", "English"),
@@ -38,6 +50,9 @@ LANGUAGE_CHOICES = [
     ("ta", "Tamil"),
     ("te", "Telugu"),
 ]
+
+MAX_IMAGE_UPLOAD_BYTES = 8 * 1024 * 1024
+ALLOWED_IMAGE_MIME_TYPES = {"image/jpeg", "image/png", "image/webp"}
 
 
 def login_required(view_function):
@@ -434,6 +449,78 @@ def chat_stream():
     except Exception as e:
         print(f"Error in chat_stream: {e}")
         return jsonify({"error": str(e)}), 500
+
+
+@app.route("/detect_plant_disease", methods=["POST"])
+@login_required
+def detect_plant_disease():
+    image_file = request.files.get("image")
+    requested_chat_id = (request.form.get("chat_id") or "").strip()
+
+    if not image_file:
+        return jsonify({"error": "Please upload an image file."}), 400
+
+    if image_file.mimetype not in ALLOWED_IMAGE_MIME_TYPES:
+        return jsonify({"error": "Unsupported image type. Use JPG, PNG, or WEBP."}), 400
+
+    image_file.stream.seek(0, os.SEEK_END)
+    file_size = image_file.stream.tell()
+    image_file.stream.seek(0)
+
+    if file_size <= 0:
+        return jsonify({"error": "Uploaded file is empty."}), 400
+
+    if file_size > MAX_IMAGE_UPLOAD_BYTES:
+        return jsonify({"error": "Image is too large. Max allowed size is 8MB."}), 400
+
+    image_bytes = image_file.read()
+
+    user = get_logged_in_user()
+    if not user:
+        return jsonify({"error": "User not found."}), 404
+
+    user = ensure_chat_containers(user)
+    chat = None
+    if requested_chat_id:
+        chat = get_chat_by_id(user, requested_chat_id)
+
+    if not chat:
+        chat = create_chat(user["_id"])
+        requested_chat_id = chat["chat_id"]
+
+    diagnosis_response = analyze_plant_disease_image(image_bytes=image_bytes, mime_type=image_file.mimetype)
+
+    user_lang = user.get("preferred_language", "en")
+    final_response = diagnosis_response
+    if user_lang and user_lang != "en":
+        try:
+            final_response = translate_text(diagnosis_response, src_language="en", dest_language=user_lang)
+        except Exception as e:
+            print(f"Translation error (en->user, image diagnosis): {e}")
+            final_response = diagnosis_response
+
+    image_name = (image_file.filename or "plant-image").strip()
+    image_request_message = f"Please diagnose plant disease from uploaded image: {image_name}"
+
+    chat_entries = [
+        {"sender": "user", "message": image_request_message, "timestamp": datetime.datetime.now(datetime.UTC)},
+        {"sender": "bot", "message": final_response, "timestamp": datetime.datetime.now(datetime.UTC)},
+    ]
+
+    was_empty = not chat.get("messages")
+    chat_title = chat.get("title", "New Chat")
+    append_chat_messages(user["_id"], requested_chat_id, chat_entries)
+
+    if was_empty:
+        inferred_title = "Plant disease diagnosis"
+        update_chat_title(user["_id"], requested_chat_id, inferred_title)
+        chat_title = inferred_title
+
+    return jsonify({
+        "response": final_response,
+        "chatId": requested_chat_id,
+        "chatTitle": chat_title,
+    })
 
 
 @app.route("/chat/new", methods=["POST"])
