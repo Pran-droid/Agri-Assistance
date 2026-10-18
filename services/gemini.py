@@ -55,7 +55,7 @@ def _build_prompt(user_query: str, pdf_context: str) -> str:
 
 
 def _get_candidate_models() -> List[str]:
-    preferred = [GEMINI_MODEL, "gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
+    preferred = [GEMINI_MODEL, "gemini-2.5-flash", "gemini-flash-latest", "gemini-2.5-flash-lite", "gemini-2.0-flash"]
     seen = set()
     result = []
     for m in preferred:
