@@ -1,97 +1,111 @@
 {% extends 'base.html' %}
-{% block title %}Market Prices | AgriAssist{% endblock %}
+{% block title %}Live Mandi Market Prices | AgriAssist{% endblock %}
 {% block content %}
-<div id="loading" style="text-align: center; padding: 50px;">
-    <h2>Loading Market Data...</h2>
-    <div class="spinner"></div>
+<div id="loading" style="text-align: center; padding: 80px 20px;">
+    <div style="font-size: 2.5rem; margin-bottom: 1rem; animation: pulse 1.5s infinite;">📊</div>
+    <h2 style="font-size: 1.5rem; margin-bottom: 0.5rem;">Fetching Real-Time Mandi Prices...</h2>
+    <p style="color: var(--muted-foreground); margin-bottom: 1.5rem;">Connecting to data.gov.in Open Government Data Platform</p>
+    <div style="width: 48px; height: 48px; border: 3px solid rgba(16, 185, 129, 0.2); border-top-color: var(--primary); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto;"></div>
 </div>
 
-<section class="content-card" id="market-content" style="display: none; max-width: 1400px; width: 95%;">
-    <header class="card-header">
-        <div class="header-text">
-            <h1>Current Daily Mandi Prices</h1>
-            <p class="subtitle" id="description">Loading...</p>
-            <p style="margin-top: 10px;"><strong>Last Updated:</strong> <span id="updatedOn">Loading...</span></p>
+<div id="market-content" style="display: none; width: 100%; max-width: 1360px;">
+    <!-- Metric Bento Overview Cards -->
+    <div class="metrics-bento-grid">
+        <div class="metric-card">
+            <span class="metric-label">Total Records Tracked</span>
+            <span class="metric-value" id="statTotalRecords">4,000+</span>
+            <span class="metric-delta">Live Mandi Feeds</span>
         </div>
-    </header>
-
-    <div style="margin: 20px 0; display: flex; gap: 15px; flex-wrap: wrap;">
-        <div style="flex: 1; min-width: 200px;">
-            <label style="display: block; margin-bottom: 5px; font-weight: 500;">Filter by State:</label>
-            <select id="select_state" onchange="onStateChange()" 
-                    style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px;">
-                <option value="">All States</option>
-            </select>
+        <div class="metric-card">
+            <span class="metric-label">States Covered</span>
+            <span class="metric-value" id="statTotalStates">--</span>
+            <span class="metric-delta">Pan-India APMCs</span>
         </div>
-        <div style="flex: 1; min-width: 200px;">
-            <label style="display: block; margin-bottom: 5px; font-weight: 500;">Filter by District:</label>
-            <select id="select_district" onchange="onDistrictChange()" 
-                    style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px;">
-                <option value="">All Districts</option>
-            </select>
+        <div class="metric-card">
+            <span class="metric-label">Commodities Listed</span>
+            <span class="metric-value" id="statTotalCommodities">--</span>
+            <span class="metric-delta">Grains, Veggies, Spices</span>
         </div>
-        <div style="flex: 1; min-width: 200px;">
-            <label style="display: block; margin-bottom: 5px; font-weight: 500;">Filter by Commodity:</label>
-            <select id="select_commodity" onchange="onCommodityChange()" 
-                    style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px;">
-                <option value="">All Commodities</option>
-            </select>
+        <div class="metric-card">
+            <span class="metric-label">Data Freshness</span>
+            <span class="metric-value" id="statUpdatedDate" style="font-size: 1.15rem; font-weight: 700;">Loading...</span>
+            <span class="metric-delta" style="color: var(--primary);">Verified Source</span>
         </div>
     </div>
 
-    <div style="overflow-x: auto; margin-top: 20px;">
-        <table class="table" style="width: 100%; border-collapse: collapse;">
-            <thead style="background-color: var(--accent); color: white;">
-                <tr>
-                    <th style="padding: 12px; text-align: left;">Sr. No.</th>
-                    <th style="padding: 12px; text-align: left;">State</th>
-                    <th style="padding: 12px; text-align: left;">District</th>
-                    <th style="padding: 12px; text-align: left;">Market</th>
-                    <th style="padding: 12px; text-align: left;">Commodity</th>
-                    <th style="padding: 12px; text-align: left;">Variety</th>
-                    <th style="padding: 12px; text-align: left;">Min Price (₹)</th>
-                    <th style="padding: 12px; text-align: left;">Max Price (₹)</th>
-                    <th style="padding: 12px; text-align: left;">Modal Price (₹)</th>
-                </tr>
-            </thead>
-            <tbody id="market_price_body">
-                <!-- Data will be populated here -->
-            </tbody>
-        </table>
-    </div>
-</section>
+    <!-- Filter & Table Card -->
+    <section class="content-card" style="width: 100%; padding: 1.75rem 2rem;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem;">
+            <div>
+                <h1 style="font-size: 1.75rem; margin-bottom: 0.25rem;">Daily Mandi Prices & Market Intelligence</h1>
+                <p id="description" class="subtitle" style="margin-bottom: 0;">Daily wholesale prices from agricultural produce markets across India.</p>
+            </div>
+            <div class="badge" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path><path d="M22 12A10 10 0 0 0 12 2v10z"></path></svg>
+                <span>data.gov.in Official API</span>
+            </div>
+        </div>
+
+        <!-- Filter Bar -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-bottom: 1.75rem; background: var(--input); padding: 1.25rem; border-radius: var(--radius-lg); border: 1px solid var(--border);">
+            <div class="form-grid">
+                <label>
+                    <span style="font-size: 0.82rem; font-weight: 600; text-transform: uppercase; color: var(--muted-foreground);">State</span>
+                    <select id="select_state" onchange="onStateChange()">
+                        <option value="">All States</option>
+                    </select>
+                </label>
+            </div>
+            <div class="form-grid">
+                <label>
+                    <span style="font-size: 0.82rem; font-weight: 600; text-transform: uppercase; color: var(--muted-foreground);">District</span>
+                    <select id="select_district" onchange="onDistrictChange()">
+                        <option value="">All Districts</option>
+                    </select>
+                </label>
+            </div>
+            <div class="form-grid">
+                <label>
+                    <span style="font-size: 0.82rem; font-weight: 600; text-transform: uppercase; color: var(--muted-foreground);">Commodity</span>
+                    <select id="select_commodity" onchange="onCommodityChange()">
+                        <option value="">All Commodities</option>
+                    </select>
+                </label>
+            </div>
+        </div>
+
+        <!-- Results Table -->
+        <div class="data-table-wrapper" style="overflow-x: auto;">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th style="width: 60px;">#</th>
+                        <th>State</th>
+                        <th>District</th>
+                        <th>Market / Mandi</th>
+                        <th>Commodity</th>
+                        <th>Variety</th>
+                        <th>Min Price (₹)</th>
+                        <th>Max Price (₹)</th>
+                        <th>Modal Price (₹)</th>
+                    </tr>
+                </thead>
+                <tbody id="market_price_body">
+                    <!-- Populated dynamically via JS -->
+                </tbody>
+            </table>
+        </div>
+    </section>
+</div>
 
 <style>
-.spinner {
-    border: 4px solid #f3f3f3;
-    border-top: 4px solid var(--accent);
-    border-radius: 50%;
-    width: 40px;
-    height: 40px;
-    animation: spin 1s linear infinite;
-    margin: 20px auto;
-}
-
 @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
 }
-
-.table tbody tr {
-    border-bottom: 1px solid #ddd;
-}
-
-.table tbody tr:hover {
-    background-color: rgba(255, 255, 255, 0.05);
-}
-
-.table tbody td {
-    padding: 12px;
-}
 </style>
 
 <script>
-// Page onload functionality
 let loader = document.getElementById('loading');
 let marketContent = document.getElementById('market-content');
 
@@ -100,7 +114,6 @@ function myloader() {
     marketContent.style.display = 'block';
 }
 
-// Global data storage
 let allRecords = [];
 let filteredRecords = [];
 let currentFilters = {
@@ -109,74 +122,58 @@ let currentFilters = {
     commodity: ''
 };
 
-// DOM elements
 const stateSelect = document.getElementById('select_state');
 const districtSelect = document.getElementById('select_district');
 const commoditySelect = document.getElementById('select_commodity');
+const statTotalRecords = document.getElementById('statTotalRecords');
+const statTotalStates = document.getElementById('statTotalStates');
+const statTotalCommodities = document.getElementById('statTotalCommodities');
+const statUpdatedDate = document.getElementById('statUpdatedDate');
 
-// API Configuration
 const url = 'https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070?api-key=579b464db66ec23bdd0000017704f08e67e4414747189afb9ef2d662&format=json&offset=0&limit=4000';
 
-// Fetch data from API
 fetch(url)
-    .then(response => {
-        return response.json();
-    })
-    .then(data => {
-        getData(data);
-    })
+    .then(response => response.json())
+    .then(data => getData(data))
     .catch(err => {
         console.error('Error fetching market data:', err);
-        loader.innerHTML = '<h2 style="color: red;">Failed to load market data. Please try again later.</h2>';
+        loader.innerHTML = '<h2 style="color: #ef4444;">Failed to load market data from data.gov.in. Please try again later.</h2>';
     });
 
-// Process the fetched data
 function getData(result) {
-    console.log('Data received:', result);
-    
-    // Extract and display data
     if (result.updated_date) {
-        getDate(result.updated_date);
+        const update = new Date(result.updated_date);
+        statUpdatedDate.textContent = update.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
     }
     
     if (result.desc) {
-        getDesc(result.desc);
+        document.getElementById('description').textContent = result.desc;
     }
     
     if (result.records && result.records.length > 0) {
         allRecords = result.records;
         filteredRecords = result.records;
         
-        // Initialize all dropdowns
+        statTotalRecords.textContent = allRecords.length.toLocaleString('en-IN');
+        const statesSet = new Set(allRecords.map(r => r.state).filter(Boolean));
+        statTotalStates.textContent = statesSet.size;
+        const commsSet = new Set(allRecords.map(r => r.commodity).filter(Boolean));
+        statTotalCommodities.textContent = commsSet.size;
+
         populateStateDropdown();
         populateDistrictDropdown();
         populateCommodityDropdown();
-        
-        // Display all records initially
         getRecords(filteredRecords);
     } else {
         document.getElementById('market_price_body').innerHTML = 
-            '<tr><td colspan="9" style="text-align: center; padding: 20px;">No data available</td></tr>';
+            '<tr><td colspan="9" style="text-align: center; padding: 30px; color: var(--muted-foreground);">No market data records available.</td></tr>';
     }
     
     myloader();
 }
 
-// Display the updated date
-function getDate(date) {
-    var update = new Date(date);
-    document.getElementById('updatedOn').innerHTML = update.toDateString();
-}
-
-// Display description
-function getDesc(desc) {
-    document.getElementById('description').innerHTML = desc;
-}
-
-// Populate state dropdown
 function populateStateDropdown() {
-    const uniqueStates = [...new Set(allRecords.map(r => r.state))].filter(s => s).sort();
-    
+    const uniqueStates = [...new Set(allRecords.map(r => r.state))].filter(Boolean).sort();
     stateSelect.innerHTML = '<option value="">All States</option>';
     uniqueStates.forEach(stateName => {
         const option = document.createElement('option');
@@ -186,14 +183,12 @@ function populateStateDropdown() {
     });
 }
 
-// Populate district dropdown based on selected state
 function populateDistrictDropdown() {
     const recordsToFilter = currentFilters.state 
         ? allRecords.filter(r => r.state === currentFilters.state)
         : allRecords;
     
-    const uniqueDistricts = [...new Set(recordsToFilter.map(r => r.district))].filter(d => d).sort();
-    
+    const uniqueDistricts = [...new Set(recordsToFilter.map(r => r.district))].filter(Boolean).sort();
     districtSelect.innerHTML = '<option value="">All Districts</option>';
     uniqueDistricts.forEach(districtName => {
         const option = document.createElement('option');
@@ -202,7 +197,6 @@ function populateDistrictDropdown() {
         districtSelect.appendChild(option);
     });
     
-    // Restore selection if it still exists
     if (currentFilters.district && uniqueDistricts.includes(currentFilters.district)) {
         districtSelect.value = currentFilters.district;
     } else {
@@ -210,10 +204,8 @@ function populateDistrictDropdown() {
     }
 }
 
-// Populate commodity dropdown based on selected state and district
 function populateCommodityDropdown() {
     let recordsToFilter = allRecords;
-    
     if (currentFilters.state) {
         recordsToFilter = recordsToFilter.filter(r => r.state === currentFilters.state);
     }
@@ -221,8 +213,7 @@ function populateCommodityDropdown() {
         recordsToFilter = recordsToFilter.filter(r => r.district === currentFilters.district);
     }
     
-    const uniqueCommodities = [...new Set(recordsToFilter.map(r => r.commodity))].filter(c => c).sort();
-    
+    const uniqueCommodities = [...new Set(recordsToFilter.map(r => r.commodity))].filter(Boolean).sort();
     commoditySelect.innerHTML = '<option value="">All Commodities</option>';
     uniqueCommodities.forEach(commodityName => {
         const option = document.createElement('option');
@@ -231,7 +222,6 @@ function populateCommodityDropdown() {
         commoditySelect.appendChild(option);
     });
     
-    // Restore selection if it still exists
     if (currentFilters.commodity && uniqueCommodities.includes(currentFilters.commodity)) {
         commoditySelect.value = currentFilters.commodity;
     } else {
@@ -239,44 +229,29 @@ function populateCommodityDropdown() {
     }
 }
 
-// Handle state change
 function onStateChange() {
     currentFilters.state = stateSelect.value;
     currentFilters.district = '';
     currentFilters.commodity = '';
-    
-    // Update dependent dropdowns
     populateDistrictDropdown();
     populateCommodityDropdown();
-    
-    // Apply filters and update table
     applyFilters();
 }
 
-// Handle district change
 function onDistrictChange() {
     currentFilters.district = districtSelect.value;
     currentFilters.commodity = '';
-    
-    // Update dependent dropdown
     populateCommodityDropdown();
-    
-    // Apply filters and update table
     applyFilters();
 }
 
-// Handle commodity change
 function onCommodityChange() {
     currentFilters.commodity = commoditySelect.value;
-    
-    // Apply filters and update table
     applyFilters();
 }
 
-// Apply all active filters
 function applyFilters() {
     filteredRecords = allRecords;
-    
     if (currentFilters.state) {
         filteredRecords = filteredRecords.filter(r => r.state === currentFilters.state);
     }
@@ -286,43 +261,48 @@ function applyFilters() {
     if (currentFilters.commodity) {
         filteredRecords = filteredRecords.filter(r => r.commodity === currentFilters.commodity);
     }
-    
     getRecords(filteredRecords);
 }
 
-// Populate table with records
 function getRecords(record) {
     const tbody = document.getElementById('market_price_body');
-    tbody.innerHTML = ''; // Clear existing data
+    tbody.innerHTML = '';
     
     if (record.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 20px;">No records found for the selected filters</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 30px; color: var(--muted-foreground);">No records found for the selected filters.</td></tr>';
         return;
     }
     
-    for(let i = 0; i < record.length; i++) {
+    const displayCount = Math.min(record.length, 500); // Prevent browser sluggishness on render
+    const fragment = document.createDocumentFragment();
+
+    for (let i = 0; i < displayCount; i++) {
         const sr = i + 1;
-        const state = record[i].state || 'N/A';
-        const districts = record[i].district || 'N/A';
-        const market = record[i].market || 'N/A';
-        const commodity = record[i].commodity || 'N/A';
-        const variety = record[i].variety || 'N/A';
-        const min_price = record[i].min_price || 'N/A';
-        const max_price = record[i].max_price || 'N/A';
-        const modal_price = record[i].modal_price || 'N/A';
+        const r = record[i];
+        const state = r.state || 'N/A';
+        const district = r.district || 'N/A';
+        const market = r.market || 'N/A';
+        const commodity = r.commodity || 'N/A';
+        const variety = r.variety || 'N/A';
+        const min_price = r.min_price || 'N/A';
+        const max_price = r.max_price || 'N/A';
+        const modal_price = r.modal_price || 'N/A';
         
-        const tTr = document.createElement('tr');
-        tTr.innerHTML = '<th scope="row">' + sr + '</th>' + '\n' +
-            '<td>' + state + '</td>' + '\n' +
-            '<td>' + districts + '</td>' + '\n' +
-            '<td>' + market + '</td>' + '\n' +
-            '<td>' + commodity + '</td>' + '\n' +
-            '<td>' + variety + '</td>' + '\n' +
-            '<td>' + min_price + '</td>' + '\n' +
-            '<td>' + max_price + '</td>' + '\n' +
-            '<td>' + modal_price + '</td>' + '\n';
-        tbody.appendChild(tTr);
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td style="color: var(--muted-foreground); font-weight: 500;">${sr}</td>
+            <td style="font-weight: 600;">${state}</td>
+            <td>${district}</td>
+            <td>${market}</td>
+            <td style="font-weight: 600; color: var(--primary);">${commodity}</td>
+            <td>${variety}</td>
+            <td>₹${min_price}</td>
+            <td>₹${max_price}</td>
+            <td><span class="price-tag">₹${modal_price}</span></td>
+        `;
+        fragment.appendChild(tr);
     }
+    tbody.appendChild(fragment);
 }
 </script>
 {% endblock %}

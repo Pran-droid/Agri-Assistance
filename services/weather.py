@@ -1,8 +1,11 @@
 import os
-
+from dotenv import load_dotenv
 import requests
 
+load_dotenv()
+
 OPENWEATHER_API_KEY = os.getenv("OPENWEATHER_API_KEY", "YOUR_OPENWEATHER_API_KEY")
+
 
 
 def get_weather(location: str) -> str:

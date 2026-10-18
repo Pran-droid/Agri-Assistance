@@ -1,61 +1,85 @@
 {% extends 'base.html' %}
-{% block title %}My Profile | AgriAssist{% endblock %}
+{% block title %}Farmer Profile | AgriAssist{% endblock %}
 {% block content %}
-<section class="content-card">
-    <header class="card-header">
-        <div class="header-text">
-            <h1>{{ user.name }}</h1>
-            <p class="subtitle">Your farmer profile and preferences.</p>
-        </div>
-        <a href="{{ url_for('chat') }}" class="primary-btn">Go to Chat</a>
-    </header>
-    <div class="info-grid">
-        <div>
-            <span class="label">Email</span>
-            <p>{{ user.email }}</p>
-        </div>
-    </div>
+<div style="width: 100%; max-width: 860px;">
+    <section class="content-card">
+        <header class="card-header" style="align-items: center;">
+            <div style="display: flex; align-items: center; gap: 1.25rem;">
+                <div style="width: 56px; height: 56px; border-radius: var(--radius-lg); background: linear-gradient(135deg, var(--primary), var(--primary-hover)); color: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: 800; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.35);">
+                    {{ user.name[:1]|upper }}
+                </div>
+                <div>
+                    <h1 style="margin: 0; font-size: 1.65rem;">{{ user.name }}</h1>
+                    <p class="subtitle" style="margin: 0.15rem 0 0 0;">Farmer Profile & Intelligent Agricultural Preferences</p>
+                </div>
+            </div>
+            <a href="{{ url_for('chat') }}" class="primary-btn" style="padding: 0.6rem 1.1rem; font-size: 0.85rem;">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                <span>Open Chat</span>
+            </a>
+        </header>
 
-    {% if message %}
-    <div class="alert {% if message_class %}{{ message_class }}{% endif %}">{{ message }}</div>
-    {% endif %}
-
-    <form method="post" class="profile-form">
-        <div class="form-grid">
-            <label>
-                Location
-                <input type="text" name="location" value="{{ user.location or '' }}" placeholder="Enter your location">
-            </label>
-            <label>
-                Preferred Language
-                <select name="preferred_language">
-                    {% for code, label in language_choices %}
-                    <option value="{{ code }}" {% if user.preferred_language == code %}selected{% endif %}>{{ label }}</option>
-                    {% endfor %}
-                </select>
-            </label>
-            <label>
-                My Crops
-                <select name="crops" id="cropsSelect">
-                    <option value="">Loading crops...</option>
-                </select>
-                <span class="helper-text">Select your primary crop.</span>
-            </label>
+        <!-- Summary Info Grid -->
+        <div class="info-grid" style="background: var(--input); padding: 1.25rem; border-radius: var(--radius-lg); border: 1px solid var(--border); margin-bottom: 2rem;">
+            <div>
+                <span class="label">Email Address</span>
+                <p style="font-weight: 500; margin: 0;">{{ user.email }}</p>
+            </div>
+            <div>
+                <span class="label">Registered Location</span>
+                <p style="font-weight: 500; margin: 0;">{{ user.location or 'Not specified' }}</p>
+            </div>
+            <div>
+                <span class="label">Language Support</span>
+                <p style="font-weight: 500; margin: 0;">{{ user.preferred_language|upper }}</p>
+            </div>
         </div>
-        <div class="form-actions">
-            <button type="submit" class="primary-btn">Save Changes</button>
-        </div>
-    </form>
-</section>
 
-<style>
-#cropsSelect {
-    padding: 8px;
-}
-</style>
+        {% if message %}
+        <div class="alert {% if message_class %}{{ message_class }}{% else %}alert-success{% endif %}">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+            <span>{{ message }}</span>
+        </div>
+        {% endif %}
+
+        <form method="post" class="profile-form">
+            <div class="form-grid">
+                <label>
+                    <span>Farm Location (District, State)</span>
+                    <input type="text" name="location" value="{{ user.location or '' }}" placeholder="e.g. Nashik, Maharashtra" autocomplete="off">
+                    <span class="helper-text">Used for hyper-local weather alerts and nearest APMC mandi rates.</span>
+                </label>
+
+                <label>
+                    <span>Preferred Communication Language</span>
+                    <select name="preferred_language">
+                        {% for code, label in language_choices %}
+                        <option value="{{ code }}" {% if user.preferred_language == code %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                    <span class="helper-text">AgriAssist will converse with you and explain remedies in this language.</span>
+                </label>
+
+                <label>
+                    <span>Primary Cultivated Crop</span>
+                    <select name="crops" id="cropsSelect">
+                        <option value="">Loading commodities...</option>
+                    </select>
+                    <span class="helper-text">Enables automatic price tracking and disease monitoring for your key crop.</span>
+                </label>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="primary-btn">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+                    <span>Save Profile Changes</span>
+                </button>
+            </div>
+        </form>
+    </section>
+</div>
 
 <script>
-// Load available crops from API
 document.addEventListener('DOMContentLoaded', async () => {
     const cropsSelect = document.getElementById('cropsSelect');
     const userCrops = {{ user.crops | tojson }};
@@ -65,20 +89,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         const response = await fetch('/api/market/filters');
         const data = await response.json();
         
-        // Clear loading option
-        cropsSelect.innerHTML = '<option value="">Select a crop</option>';
-        
-        // Populate with commodities from market data
+        cropsSelect.innerHTML = '<option value="">Select your crop</option>';
         data.commodities.forEach(crop => {
             const option = document.createElement('option');
             option.value = crop;
             option.textContent = crop;
-            
-            // Pre-select user's existing crop
             if (userCrop && userCrop === crop) {
                 option.selected = true;
             }
-            
             cropsSelect.appendChild(option);
         });
     } catch (error) {

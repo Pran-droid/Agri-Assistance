@@ -1,4 +1,5 @@
 from typing import Any, Dict, Generator
+import re
 import time
 
 import models
@@ -11,9 +12,21 @@ from .weather import get_weather
 def handle_intents(user: Dict[str, Any], english_message: str) -> str:
     lowered = english_message.lower()
 
+    def extract_commodity_from_price_query(text: str) -> str:
+        match = re.search(r"\b(price|rate)\s+(of|for)?\s*(.+)", text)
+        if match:
+            return match.group(3).strip(" .?\n\t")
+        match = re.search(r"(.+?)\s+(price|rate)\b", text)
+        if match:
+            return match.group(1).strip(" .?\n\t")
+        return ""
+
     if "weather" in lowered:
         return get_weather(user.get("location", ""))
     if "market" in lowered or "price" in lowered:
+        specific_commodity = extract_commodity_from_price_query(lowered)
+        if specific_commodity:
+            return search_commodity_prices(specific_commodity, user.get("location", ""))
         # Get farmer's crops and location from profile
         user_crops = user.get("crops", [])
         user_location = user.get("location", "")
@@ -51,11 +64,24 @@ def handle_intents_stream(user: Dict[str, Any], english_message: str) -> Generat
     """Stream-enabled version of handle_intents for real-time responses."""
     lowered = english_message.lower()
 
+    def extract_commodity_from_price_query(text: str) -> str:
+        match = re.search(r"\b(price|rate)\s+(of|for)?\s*(.+)", text)
+        if match:
+            return match.group(3).strip(" .?\n\t")
+        match = re.search(r"(.+?)\s+(price|rate)\b", text)
+        if match:
+            return match.group(1).strip(" .?\n\t")
+        return ""
+
     # Quick responses (non-streaming)
     if "weather" in lowered:
         yield get_weather(user.get("location", ""))
         return
     if "market" in lowered or "price" in lowered:
+        specific_commodity = extract_commodity_from_price_query(lowered)
+        if specific_commodity:
+            yield search_commodity_prices(specific_commodity, user.get("location", ""))
+            return
         # Get farmer's crops and location from profile
         user_crops = user.get("crops", [])
         user_location = user.get("location", "")

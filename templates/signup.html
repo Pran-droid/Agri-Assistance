@@ -1,58 +1,84 @@
 {% extends 'base.html' %}
 {% block title %}Sign Up | AgriAssist{% endblock %}
 {% block content %}
-<section class="auth-card">
-    <h1>Create Account</h1>
-    <p class="subtitle">Join the AgriAssist chatbot prototype.</p>
+<section class="auth-card" style="max-width: 520px;">
+    <div style="text-align: center; margin-bottom: 1.5rem;">
+        <div class="brand-badge" style="width: 48px; height: 48px; margin: 0 auto 0.75rem auto;">
+            <img src="{{ url_for('static', filename='bot-icon-chatbot.png') }}" alt="AgriAssist" style="width: 30px; height: 30px;">
+        </div>
+        <h1 style="font-size: 1.65rem; margin-bottom: 0.35rem;">Create Your Account</h1>
+        <p class="subtitle" style="margin-bottom: 0;">Get localized mandi prices, weather alerts, and AI farming guidance.</p>
+    </div>
+
     {% if error %}
-    <div class="alert alert-error">{{ error }}</div>
+    <div class="alert alert-error">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+        <span>{{ error }}</span>
+    </div>
     {% endif %}
+
     <form method="post" class="form-grid">
-        <label>Name
-            <input type="text" name="name" required placeholder="Full name">
+        <label>
+            <span>Full Name</span>
+            <input type="text" name="name" required placeholder="Farmer Name" autocomplete="name">
         </label>
-        <label>Email
-            <input type="email" name="email" required placeholder="you@example.com">
+        
+        <label>
+            <span>Email Address</span>
+            <input type="email" name="email" required placeholder="farmer@example.com" autocomplete="email">
         </label>
-        <label>State
-            <select name="state" id="stateSelect" required>
-                <option value="">Select State</option>
-            </select>
-        </label>
-        <label>District
-            <select name="district" id="districtSelect" required disabled>
-                <option value="">Select State First</option>
-            </select>
-        </label>
-        <label>Preferred Language
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+            <label>
+                <span>State</span>
+                <select name="state" id="stateSelect" required>
+                    <option value="">Select State</option>
+                </select>
+            </label>
+            <label>
+                <span>District</span>
+                <select name="district" id="districtSelect" required disabled>
+                    <option value="">Select State First</option>
+                </select>
+            </label>
+        </div>
+
+        <label>
+            <span>Preferred Language</span>
             <select name="preferred_language" required>
-                <option value="en">English</option>
-                <option value="hi">Hindi</option>
-                <option value="mr">Marathi</option>
-                <option value="ta">Tamil</option>
-                <option value="te">Telugu</option>
+                <option value="en">English (English)</option>
+                <option value="hi">हिंदी (Hindi)</option>
+                <option value="mr">मराठी (Marathi)</option>
+                <option value="ta">தமிழ் (Tamil)</option>
+                <option value="te">తెలుగు (Telugu)</option>
             </select>
         </label>
-        <label>Password
-            <input type="password" name="password" required placeholder="Choose a password">
+
+        <label>
+            <span>Choose Password</span>
+            <input type="password" name="password" required placeholder="Create a secure password" autocomplete="new-password">
         </label>
-        <button type="submit" class="primary-btn">Sign Up</button>
+
+        <button type="submit" class="primary-btn" style="margin-top: 0.5rem; width: 100%;">
+            <span>Create Account</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+        </button>
     </form>
-    <p class="form-footer">Already have an account? <a href="{{ url_for('login') }}">Log in</a>.</p>
+
+    <p class="form-footer">
+        Already have an account? <a href="{{ url_for('login') }}">Log in here</a>
+    </p>
 </section>
 
 <script>
-// Load states on page load
 document.addEventListener('DOMContentLoaded', async () => {
     const stateSelect = document.getElementById('stateSelect');
     const districtSelect = document.getElementById('districtSelect');
     
-    // Fetch all states
     try {
         const response = await fetch('/api/market/filters');
         const data = await response.json();
         
-        // Populate states
         data.states.forEach(state => {
             const option = document.createElement('option');
             option.value = state;
@@ -63,7 +89,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.error('Error loading states:', error);
     }
     
-    // Handle state change - load districts
     stateSelect.addEventListener('change', async () => {
         const selectedState = stateSelect.value;
         districtSelect.innerHTML = '<option value="">Loading...</option>';

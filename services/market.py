@@ -158,6 +158,25 @@ def format_market_prices(records: List[Dict], location: str = "", district: str 
     else:
         result = "Market prices:\n\n"
     
+    def infer_unit(commodity_name: str) -> str:
+        name = (commodity_name or "").lower()
+        if "egg" in name:
+            return "dozen"
+
+        gram_keywords = {
+            "chilli", "mirch", "pepper", "cardamom", "elaichi", "cumin", "jeera",
+            "coriander", "dhania", "turmeric", "haldi", "clove", "laung",
+            "cinnamon", "dalchini", "nutmeg", "mace", "fenugreek", "methi",
+            "mustard", "rai"
+        }
+        if any(keyword in name for keyword in gram_keywords):
+            return "gram"
+
+        if "milk" in name or "oil" in name or "honey" in name:
+            return "liter"
+
+        return "kg"
+
     # Format each record
     for i, record in enumerate(filtered_records, 1):
         state_name = record.get("state", "N/A")
@@ -168,11 +187,13 @@ def format_market_prices(records: List[Dict], location: str = "", district: str 
         min_price = record.get("min_price", "N/A")
         max_price = record.get("max_price", "N/A")
         modal_price = record.get("modal_price", "N/A")
+        unit = record.get("unit") or infer_unit(commodity)
+        unit_label = f"per {unit}"
         
         result += f"{i}. **{commodity}** ({variety})\n"
         result += f"   📍 Location: {market}, {district_name}, {state_name}\n"
-        result += f"   💰 Price Range: ₹{min_price} - ₹{max_price}\n"
-        result += f"   📊 Modal Price: ₹{modal_price}\n\n"
+        result += f"   💰 Price Range: ₹{min_price} - ₹{max_price} {unit_label}\n"
+        result += f"   📊 Modal Price: ₹{modal_price} {unit_label}\n\n"
     
     return result.strip()
 

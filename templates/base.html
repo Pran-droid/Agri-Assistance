@@ -3,75 +3,127 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}AgriAssist{% endblock %}</title>
+    <title>{% block title %}AgriAssist - Intelligent Agriculture Assistant{% endblock %}</title>
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='bot-icon-chatbot.png') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
     <nav class="top-nav">
-    <div class="brand">
-        <img src="{{ url_for('static', filename='bot-icon-chatbot.png') }}" alt="AgriAssist Logo" class="brand-logo">
-        AgriAssist
-    </div>
-        {% if is_authenticated %}
+        <a href="{% if is_authenticated %}{{ url_for('chat') }}{% else %}{{ url_for('about') }}{% endif %}" class="brand">
+            <div class="brand-badge">
+                <img src="{{ url_for('static', filename='bot-icon-chatbot.png') }}" alt="AgriAssist Logo">
+            </div>
+            <span>Agri<span class="brand-accent">Assist</span></span>
+        </a>
         <ul>
-            <li><a href="{{ url_for('chat') }}">Chat</a></li>
-            <li><a href="{{ url_for('market_prices') }}">Market Prices</a></li>
-            <li><a href="{{ url_for('about') }}">About</a></li>
-            <li><a href="{{ url_for('profile') }}">Profile</a></li>
-            <li><button id="themeToggle" class="theme-toggle" title="Toggle theme">🌙</button></li>
-            <li><a href="{{ url_for('logout') }}">Logout</a></li>
+            {% if is_authenticated %}
+                <li>
+                    <a href="{{ url_for('chat') }}" class="{% if request.endpoint == 'chat' %}active{% endif %}">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                        <span>Chat</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ url_for('market_prices') }}" class="{% if request.endpoint == 'market_prices' %}active{% endif %}">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+                        <span>Market Prices</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ url_for('about') }}" class="{% if request.endpoint == 'about' %}active{% endif %}">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                        <span>About</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ url_for('profile') }}" class="{% if request.endpoint == 'profile' %}active{% endif %}">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                        <span>Profile</span>
+                    </a>
+                </li>
+                <li>
+                    <button id="themeToggle" class="theme-toggle" title="Toggle theme" aria-label="Toggle theme">
+                        <span id="themeIcon">🌙</span>
+                    </button>
+                </li>
+                <li>
+                    <a href="{{ url_for('logout') }}" class="btn-outline" style="padding: 0.4rem 0.8rem; font-size: 0.82rem;">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                        <span>Logout</span>
+                    </a>
+                </li>
+            {% else %}
+                <li>
+                    <a href="{{ url_for('about') }}" class="{% if request.endpoint == 'about' %}active{% endif %}">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                        <span>About</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ url_for('market_prices') }}" class="{% if request.endpoint == 'market_prices' %}active{% endif %}">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+                        <span>Market Prices</span>
+                    </a>
+                </li>
+                <li>
+                    <button id="themeToggle" class="theme-toggle" title="Toggle theme" aria-label="Toggle theme">
+                        <span id="themeIcon">🌙</span>
+                    </button>
+                </li>
+                <li>
+                    <a href="{{ url_for('login') }}" class="{% if request.endpoint == 'login' %}active{% endif %}">
+                        <span>Login</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ url_for('signup') }}" class="nav-cta">
+                        <span>Sign Up</span>
+                    </a>
+                </li>
+            {% endif %}
         </ul>
-        {% else %}
-        <ul>
-            <li><a href="{{ url_for('about') }}">About</a></li>
-            <li><a href="{{ url_for('market_prices') }}">Market Prices</a></li>
-            <li><button id="themeToggle" class="theme-toggle" title="Toggle theme">🌙</button></li>
-            <li><a href="{{ url_for('login') }}">Login</a></li>
-            <li><a href="{{ url_for('signup') }}">Sign Up</a></li>
-        </ul>
-        {% endif %}
     </nav>
+
     <main class="page-shell">
         {% block content %}{% endblock %}
     </main>
+
     <footer class="footer">
-        <p>&copy; 2025 AgriAssist. All rights reserved.</p>
+        <p>&copy; 2026 AgriAssist. Empowering smart agriculture with AI.</p>
     </footer>
+
     <script>
-        // Theme toggle functionality
         const themeToggle = document.getElementById('themeToggle');
+        const themeIcon = document.getElementById('themeIcon');
         const htmlElement = document.documentElement;
         
-        // Initialize theme from localStorage
         function initTheme() {
             const savedTheme = localStorage.getItem('theme') || 'dark';
             setTheme(savedTheme);
         }
         
-        // Set theme and update button
         function setTheme(theme) {
             if (theme === 'light') {
                 htmlElement.setAttribute('data-theme', 'light');
-                themeToggle.textContent = '☀️';
+                themeIcon.textContent = '☀️';
             } else {
                 htmlElement.removeAttribute('data-theme');
-                themeToggle.textContent = '🌙';
+                themeIcon.textContent = '🌙';
             }
             localStorage.setItem('theme', theme);
         }
         
-        // Toggle theme on button click
-        themeToggle.addEventListener('click', () => {
-            const currentTheme = htmlElement.getAttribute('data-theme');
-            const newTheme = currentTheme === 'light' ? 'dark' : 'light';
-            setTheme(newTheme);
-        });
+        if (themeToggle) {
+            themeToggle.addEventListener('click', () => {
+                const currentTheme = htmlElement.getAttribute('data-theme');
+                const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+                setTheme(newTheme);
+            });
+        }
         
-        // Initialize theme on page load
         initTheme();
     </script>
 </body>

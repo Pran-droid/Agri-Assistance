@@ -1,44 +1,66 @@
 {% extends 'base.html' %}
-{% block title %}Chat | AgriAssist{% endblock %}
+{% block title %}Chat Advisor | AgriAssist{% endblock %}
 {% block content %}
 <section class="chat-shell">
+    <!-- Chatbot-UI Inspired Sidebar -->
     <aside class="chat-sidebar">
         <div class="sidebar-actions">
-            <button type="button" id="newChatBtn" class="sidebar-btn primary">+ New Chat</button>
+            <button type="button" id="newChatBtn" class="sidebar-btn primary">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                <span>New Conversation</span>
+            </button>
+            <div class="sidebar-search-box">
+                <svg class="sidebar-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                <input type="text" id="chatSearchInput" placeholder="Search chats..." autocomplete="off">
+            </div>
         </div>
+
         <div class="sidebar-section">
-            <h3>Your Chats</h3>
-            <ul class="sidebar-history chat-list">
+            <h3>Recent Conversations</h3>
+            <ul class="sidebar-history chat-list" id="sidebarChatList">
                 {% if chats %}
                     {% for chat in chats %}
                         {% set last_message = chat.messages|last if chat.messages else None %}
                         <li class="chat-list-item{% if active_chat and chat.chat_id == active_chat.chat_id %} active{% endif %}" data-chat-id="{{ chat.chat_id }}">
-                            <button class="delete-chat-btn" data-chat-id="{{ chat.chat_id }}" title="Delete chat">×</button>
+                            <button class="delete-chat-btn" data-chat-id="{{ chat.chat_id }}" title="Delete chat" aria-label="Delete chat">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                            </button>
                             <a href="{{ url_for('chat') }}?chat_id={{ chat.chat_id }}">
                                 <div class="chat-title">{{ chat.title or 'New Chat' }}</div>
                                 {% if last_message %}
-                                    <div class="chat-snippet">{{ last_message.message[:60] }}{% if last_message.message|length > 60 %}…{% endif %}</div>
+                                    <div class="chat-snippet">{{ last_message.message[:50] }}{% if last_message.message|length > 50 %}…{% endif %}</div>
                                 {% else %}
-                                    <div class="chat-snippet empty">No messages yet.</div>
+                                    <div class="chat-snippet empty">No messages yet</div>
                                 {% endif %}
                             </a>
                         </li>
                     {% endfor %}
                 {% else %}
-                    <li class="chat-list-item empty">No chats yet. Start a new one!</li>
+                    <li class="chat-list-item empty" style="padding: 1rem; text-align: center; color: var(--muted-foreground); font-size: 0.85rem;">
+                        No previous chats. Start your first consultation above!
+                    </li>
                 {% endif %}
             </ul>
         </div>
     </aside>
+
+    <!-- Main Chat Window Panel -->
     <div class="chat-panel">
         <header class="chat-header" id="chatHeader">
-            {% if active_chat %}
-                <h1 id="chatTitle">{{ active_chat.title or 'New Chat' }}</h1>
-            {% else %}
-                <h1 id="chatTitle">Start a new conversation</h1>
-            {% endif %}
-            <p>Ask anything about weather, markets, or your farm. I will reply in {{ user.preferred_language|upper }}.</p>
+            <div class="chat-header-info">
+                {% if active_chat %}
+                    <h1 id="chatTitle">{{ active_chat.title or 'Farm Advisory Session' }}</h1>
+                {% else %}
+                    <h1 id="chatTitle">AgriAssist Smart Advisor</h1>
+                {% endif %}
+                <p>AI agricultural intelligence in {{ user.preferred_language|upper }} • Localized for {{ user.location or 'Your Farm' }}</p>
+            </div>
+            <div class="badge">
+                <span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #10b981; margin-right: 4px;"></span>
+                Online
+            </div>
         </header>
+
         <div class="chat-window" id="chatWindow">
             <div class="chat-history" id="chatHistory">
                 {% if active_chat and active_chat.messages %}
@@ -55,27 +77,77 @@
                     </div>
                     {% endfor %}
                 {% else %}
-                    <div class="empty-state">No messages here yet. Say hello!</div>
+                    <div class="empty-state-hero" id="emptyStateHero">
+                        <div class="empty-state-icon">🌱</div>
+                        <h2>What would you like assistance with?</h2>
+                        <p>Ask about crop diseases, market prices, sowing advice, weather forecasts, or soil care.</p>
+                        
+                        <div class="prompt-chips-grid">
+                            <button type="button" class="prompt-chip" data-prompt="How do I identify and treat leaf curl disease in tomatoes?">
+                                <span>🌿</span>
+                                <span>Tomato leaf curl disease remedy</span>
+                            </button>
+                            <button type="button" class="prompt-chip" data-prompt="What are the current mandi market prices for onions and potatoes?">
+                                <span>📈</span>
+                                <span>Check live mandi rates</span>
+                            </button>
+                            <button type="button" class="prompt-chip" data-prompt="What is the recommended irrigation schedule for wheat in current weather?">
+                                <span>💧</span>
+                                <span>Wheat irrigation schedule</span>
+                            </button>
+                            <button type="button" class="prompt-chip" data-prompt="What is the weather forecast and farming guidance for this week?">
+                                <span>🌦️</span>
+                                <span>Weather forecast & guidance</span>
+                            </button>
+                        </div>
+                    </div>
                 {% endif %}
             </div>
         </div>
-        <div class="chat-input">
-            <form id="chatForm">
-                <input type="text" id="chatMessage" name="message" placeholder="Ask anything..." autocomplete="off" required>
-                <button type="submit">Send</button>
-            </form>
+
+        <!-- Input Bar with Plant Image Diagnosis Support -->
+        <div class="chat-input-wrapper">
+            <div class="chat-input">
+                <form id="chatForm">
+                    <input type="file" id="plantImageInput" accept="image/jpeg,image/png,image/webp" hidden>
+                    
+                    <button type="button" id="pickImageBtn" class="chat-action-btn" title="Upload plant leaf photo">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+                        <span id="pickImageLabel">Photo</span>
+                    </button>
+                    
+                    <button type="button" id="diagnoseImageBtn" class="chat-action-btn" title="Analyze leaf photo for diseases with AI" style="display: none;">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"></path></svg>
+                        <span>Diagnose Disease</span>
+                    </button>
+
+                    <input type="text" id="chatMessage" name="message" placeholder="Ask about crops, diseases, market rates, or weather..." autocomplete="off" required>
+                    
+                    <button type="submit">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                        <span>Send</span>
+                    </button>
+                </form>
+            </div>
         </div>
     </div>
 </section>
+
 <script>
 const chatForm = document.getElementById('chatForm');
 const chatMessageInput = document.getElementById('chatMessage');
 const chatHistory = document.getElementById('chatHistory');
 const chatTitle = document.getElementById('chatTitle');
 const newChatBtn = document.getElementById('newChatBtn');
+const plantImageInput = document.getElementById('plantImageInput');
+const pickImageBtn = document.getElementById('pickImageBtn');
+const pickImageLabel = document.getElementById('pickImageLabel');
+const diagnoseImageBtn = document.getElementById('diagnoseImageBtn');
+const chatSearchInput = document.getElementById('chatSearchInput');
 let activeChatId = "{{ active_chat.chat_id if active_chat else '' }}";
 const chatBaseUrl = "{{ url_for('chat') }}";
 const newChatEndpoint = "{{ url_for('create_new_chat') }}";
+const plantDiseaseEndpoint = "{{ url_for('detect_plant_disease') }}";
 
 function escapeHtml(value) {
     return value
@@ -87,9 +159,7 @@ function escapeHtml(value) {
 }
 
 function formatMessage(text) {
-    if (!text) {
-        return '';
-    }
+    if (!text) return '';
     const escaped = escapeHtml(text);
     const bolded = escaped.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
     const bullets = bolded.replace(/^\s*[-•]\s+/gm, '• ');
@@ -125,15 +195,46 @@ function createMessageElement(sender, text) {
 }
 
 function appendMessage(sender, text) {
-    const emptyState = document.querySelector('#chatHistory .empty-state');
-    if (emptyState) {
-        emptyState.remove();
-    }
-    const chatHeader = document.getElementById('chatHeader');
-    if (chatHeader && sender === 'user') {
-        chatHeader.style.display = 'none';
+    const emptyHero = document.getElementById('emptyStateHero');
+    if (emptyHero) {
+        emptyHero.remove();
     }
     const wrapper = createMessageElement(sender, text);
+    chatHistory.appendChild(wrapper);
+    chatHistory.parentElement.scrollTop = chatHistory.parentElement.scrollHeight;
+}
+
+function appendImageMessage(file) {
+    const emptyHero = document.getElementById('emptyStateHero');
+    if (emptyHero) {
+        emptyHero.remove();
+    }
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'message user';
+
+    const avatar = document.createElement('div');
+    avatar.className = 'avatar';
+    avatar.textContent = 'You';
+
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble image-bubble';
+
+    const imageUrl = URL.createObjectURL(file);
+    const image = document.createElement('img');
+    image.src = imageUrl;
+    image.alt = 'Uploaded plant image';
+    image.className = 'diagnosis-preview-image';
+    image.addEventListener('load', () => URL.revokeObjectURL(imageUrl), { once: true });
+
+    const caption = document.createElement('div');
+    caption.className = 'image-caption';
+    caption.textContent = `Plant image: ${file.name}`;
+
+    bubble.appendChild(image);
+    bubble.appendChild(caption);
+    wrapper.appendChild(avatar);
+    wrapper.appendChild(bubble);
     chatHistory.appendChild(wrapper);
     chatHistory.parentElement.scrollTop = chatHistory.parentElement.scrollHeight;
 }
@@ -142,20 +243,12 @@ document.querySelectorAll('#chatHistory .message .bubble').forEach((bubble) => {
     bubble.innerHTML = formatMessage(bubble.textContent);
 });
 
-const chatHeader = document.getElementById('chatHeader');
-const hasMessages = document.querySelectorAll('#chatHistory .message').length > 0;
-if (chatHeader && hasMessages) {
-    chatHeader.style.display = 'none';
-}
-
 function updateActiveChatPreview(latestText, titleOverride) {
     const item = document.querySelector(`.chat-list-item[data-chat-id="${activeChatId}"]`);
-    if (!item) {
-        return;
-    }
+    if (!item) return;
     const snippet = item.querySelector('.chat-snippet');
     if (snippet && latestText) {
-        const trimmed = latestText.length > 60 ? `${latestText.slice(0, 60)}…` : latestText;
+        const trimmed = latestText.length > 50 ? `${latestText.slice(0, 50)}…` : latestText;
         snippet.textContent = trimmed;
         snippet.classList.remove('empty');
     }
@@ -167,17 +260,46 @@ function updateActiveChatPreview(latestText, titleOverride) {
     }
 }
 
+// Quick starter prompt chips
+document.querySelectorAll('.prompt-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+        const prompt = chip.dataset.prompt;
+        if (prompt) {
+            chatMessageInput.value = prompt;
+            if (typeof chatForm.requestSubmit === 'function') {
+                chatForm.requestSubmit();
+            } else {
+                chatForm.dispatchEvent(new Event('submit', { cancelable: true }));
+            }
+        }
+    });
+});
+
+// Search past chats in sidebar
+if (chatSearchInput) {
+    chatSearchInput.addEventListener('input', (e) => {
+        const query = e.target.value.toLowerCase().trim();
+        document.querySelectorAll('.chat-list-item').forEach(item => {
+            const title = (item.querySelector('.chat-title')?.textContent || '').toLowerCase();
+            const snippet = (item.querySelector('.chat-snippet')?.textContent || '').toLowerCase();
+            if (title.includes(query) || snippet.includes(query)) {
+                item.style.display = 'block';
+            } else {
+                item.style.display = 'none';
+            }
+        });
+    });
+}
+
+// New Chat Button
 if (newChatBtn) {
     newChatBtn.addEventListener('click', async () => {
         try {
             const response = await fetch(newChatEndpoint, { method: 'POST' });
-            if (!response.ok) {
-                throw new Error('Failed to create chat');
-            }
+            if (!response.ok) throw new Error('Failed to create chat');
             const data = await response.json();
-            const newId = data.chatId;
-            if (newId) {
-                window.location.href = `${chatBaseUrl}?chat_id=${encodeURIComponent(newId)}`;
+            if (data.chatId) {
+                window.location.href = `${chatBaseUrl}?chat_id=${encodeURIComponent(data.chatId)}`;
             }
         } catch (error) {
             alert('Unable to start a new chat right now. Please try again.');
@@ -185,18 +307,111 @@ if (newChatBtn) {
     });
 }
 
+// Plant Image Pick & Diagnosis
+if (pickImageBtn && plantImageInput) {
+    pickImageBtn.addEventListener('click', () => {
+        plantImageInput.click();
+    });
+
+    plantImageInput.addEventListener('change', () => {
+        const selected = plantImageInput.files && plantImageInput.files[0];
+        if (selected) {
+            pickImageBtn.classList.add('has-file');
+            pickImageLabel.textContent = selected.name.length > 12 ? selected.name.slice(0, 10) + '…' : selected.name;
+            diagnoseImageBtn.style.display = 'inline-flex';
+        } else {
+            pickImageBtn.classList.remove('has-file');
+            pickImageLabel.textContent = 'Photo';
+            diagnoseImageBtn.style.display = 'none';
+        }
+    });
+}
+
+if (diagnoseImageBtn && plantImageInput) {
+    diagnoseImageBtn.addEventListener('click', async () => {
+        const selectedImage = plantImageInput.files && plantImageInput.files[0];
+        if (!selectedImage) {
+            alert('Please choose a plant image first.');
+            return;
+        }
+
+        appendImageMessage(selectedImage);
+
+        const botMessageWrapper = document.createElement('div');
+        botMessageWrapper.className = 'message bot';
+        const avatar = document.createElement('div');
+        avatar.className = 'avatar';
+        const img = document.createElement('img');
+        img.src = "{{ url_for('static', filename='bot-icon-chatbot.png') }}";
+        img.alt = 'AI';
+        avatar.appendChild(img);
+
+        const bubble = document.createElement('div');
+        bubble.className = 'bubble typing';
+        bubble.innerHTML = '<span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span> <span style="font-size: 0.85rem; margin-left: 0.4rem;">Analyzing plant image with vision AI...</span>';
+
+        botMessageWrapper.appendChild(avatar);
+        botMessageWrapper.appendChild(bubble);
+        chatHistory.appendChild(botMessageWrapper);
+        chatHistory.parentElement.scrollTop = chatHistory.parentElement.scrollHeight;
+
+        pickImageBtn.disabled = true;
+        diagnoseImageBtn.disabled = true;
+
+        try {
+            const formData = new FormData();
+            formData.append('image', selectedImage);
+            if (activeChatId) {
+                formData.append('chat_id', activeChatId);
+            }
+
+            const response = await fetch(plantDiseaseEndpoint, {
+                method: 'POST',
+                body: formData
+            });
+
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.error || 'Image diagnosis failed');
+            }
+
+            bubble.classList.remove('typing');
+            bubble.innerHTML = formatMessage(data.response || 'No diagnosis received.');
+
+            if (data.chatId) {
+                activeChatId = data.chatId;
+            }
+            if (data.chatTitle) {
+                chatTitle.textContent = data.chatTitle;
+                updateActiveChatPreview(data.response || '', data.chatTitle);
+            } else {
+                updateActiveChatPreview(data.response || '', null);
+            }
+        } catch (error) {
+            bubble.classList.remove('typing');
+            bubble.textContent = error.message || 'Sorry, image analysis failed. Please try again.';
+        } finally {
+            plantImageInput.value = '';
+            pickImageBtn.classList.remove('has-file');
+            pickImageLabel.textContent = 'Photo';
+            diagnoseImageBtn.style.display = 'none';
+            pickImageBtn.disabled = false;
+            diagnoseImageBtn.disabled = false;
+        }
+    });
+}
+
+// Chat Form Streaming Submission
 chatForm.addEventListener('submit', async (event) => {
     event.preventDefault();
     const message = chatMessageInput.value.trim();
-    if (!message) {
-        return;
-    }
+    if (!message) return;
+    
     appendMessage('user', message);
     chatMessageInput.value = '';
     chatMessageInput.focus();
     updateActiveChatPreview(message, null);
 
-    // Create bot message element for streaming
     const botMessageWrapper = document.createElement('div');
     botMessageWrapper.className = 'message bot';
     
@@ -205,14 +420,11 @@ chatForm.addEventListener('submit', async (event) => {
     const img = document.createElement('img');
     img.src = "{{ url_for('static', filename='bot-icon-chatbot.png') }}";
     img.alt = 'AI';
-    img.style.width = '100%';
-    img.style.height = '100%';
-    img.style.objectFit = 'contain';
     avatar.appendChild(img);
     
     const bubble = document.createElement('div');
     bubble.className = 'bubble typing';
-    bubble.textContent = '...';
+    bubble.innerHTML = '<span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span>';
     
     botMessageWrapper.appendChild(avatar);
     botMessageWrapper.appendChild(bubble);
@@ -220,7 +432,6 @@ chatForm.addEventListener('submit', async (event) => {
     chatHistory.parentElement.scrollTop = chatHistory.parentElement.scrollHeight;
 
     try {
-        // Send POST request to get streaming endpoint
         const response = await fetch("{{ url_for('chat_stream') }}", {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -231,7 +442,6 @@ chatForm.addEventListener('submit', async (event) => {
             throw new Error('Failed to get response');
         }
 
-        // Read the streaming response
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
         let fullResponse = '';
@@ -251,9 +461,7 @@ chatForm.addEventListener('submit', async (event) => {
                     if (jsonData) {
                         try {
                             const data = JSON.parse(jsonData);
-                            
                             if (data.done) {
-                                // Stream complete
                                 if (data.chatId) {
                                     activeChatId = data.chatId;
                                 }
@@ -264,7 +472,6 @@ chatForm.addEventListener('submit', async (event) => {
                                     updateActiveChatPreview(fullResponse, null);
                                 }
                             } else if (data.text) {
-                                // Append new text chunk
                                 fullResponse += data.text;
                                 bubble.innerHTML = formatMessage(fullResponse);
                                 chatHistory.parentElement.scrollTop = chatHistory.parentElement.scrollHeight;
@@ -278,8 +485,7 @@ chatForm.addEventListener('submit', async (event) => {
         }
         
         if (!fullResponse) {
-            fullResponse = 'No response received.';
-            bubble.textContent = fullResponse;
+            bubble.textContent = 'No response received.';
         }
         
     } catch (error) {
@@ -289,6 +495,7 @@ chatForm.addEventListener('submit', async (event) => {
     }
 });
 
+// Delete Chat Action
 document.querySelectorAll('.delete-chat-btn').forEach(btn => {
     btn.addEventListener('click', async (e) => {
         e.preventDefault();
@@ -306,10 +513,7 @@ document.querySelectorAll('.delete-chat-btn').forEach(btn => {
                 body: JSON.stringify({ chat_id: chatId })
             });
             
-            if (!response.ok) {
-                throw new Error('Failed to delete chat');
-            }
-            
+            if (!response.ok) throw new Error('Failed to delete chat');
             window.location.href = chatBaseUrl;
         } catch (error) {
             alert('Failed to delete chat. Please try again.');
